@@ -5,7 +5,8 @@
 ## 结构
 
 - `pipeline/`：视觉管线库，密封。检测 → 位姿 → 跟踪，内部不动。
-- `app/`：应用层，状态机 + 控制器，用 pipeline 的输出做决策并发速度指令。
+- `controller/`：通用控制器库。给定期望状态算速度，与系和语义无关。
+- `app/`：应用层，状态机 + 适配层 + 串口，用 pipeline 和 controller 做决策并发速度指令。
 
 ## pipeline 对外输出
 
@@ -16,6 +17,6 @@
 
 pipeline 可单独构建验证：`cmake -S vision/pipeline -B build && cmake --build build`，再 `ctest --test-dir build`（11/11 通过）。
 
-vision 层的 CMakeLists（把 pipeline 和 app 串起来）待补全。
+vision 层的 CMakeLists（把 pipeline、controller 和 app 串起来）待补全。
 
 当前结果可视化呈现（来自 pipeline）：[outputs](pipeline/docs/homework-setup/outputs/marker/overlay.avi)

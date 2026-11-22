@@ -3,3 +3,4 @@ project(pnx_vision)
 
 include(CTest)
 add_subdirectory(pipeline)
+add_subdirectory(controller)
