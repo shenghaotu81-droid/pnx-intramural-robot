@@ -1,0 +1,3 @@
+add_executable(config_load_test config_load_test.cpp)
+target_link_libraries(config_load_test PRIVATE vision_config mark_test_support)
+add_test(NAME config_load_test COMMAND config_load_test)

@@ -1,0 +1,12 @@
+%YAML:1.0
+---
+# 约 1 m 距离的基础位置噪声初估，单位 m²。由像素误差、焦距和尺度推算，待实测。
+camera_mse_m2: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: d
+  data: [2.0e-8, 0., 0., 0., 2.0e-8, 0., 0., 0., 2.5e-7]
+# 连续白加速度 PSD，单位 m²/s³。按预期运动量级初估，待实测。
+acceleration_psd_m2ps3: 0.5
+# 以 0.5 m/s 为标准差设定初速先验方差，单位 m²/s²。
+initial_velocity_variance_m2ps2: 0.25

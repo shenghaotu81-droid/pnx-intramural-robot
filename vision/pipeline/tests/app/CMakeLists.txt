@@ -1,0 +1,7 @@
+add_executable(debug_renderer_test rendering/debug_renderer_test.cpp)
+add_executable(offline_chain_test offline/offline_chain_test.cpp)
+foreach(test_name debug_renderer_test offline_chain_test)
+    target_link_libraries(${test_name} PRIVATE vision_app vision_detection mark_test_support)
+    target_include_directories(${test_name} PRIVATE "${VISION_ROOT}/src/app" "${VISION_ROOT}/src/detection")
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()

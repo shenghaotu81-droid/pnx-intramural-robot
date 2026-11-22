@@ -1,0 +1,11 @@
+%YAML:1.0
+---
+camera:
+  calibration: "calibration.yaml"
+geometry:
+  # P0/P1/P2/P3 的平面坐标；source_unit 指定长度单位。
+  model_points: [[0,0], [80,0], [80,80], [0,80]]
+  source_unit: "mm"
+tag:
+  allowed_ids: []
+  sizes: []

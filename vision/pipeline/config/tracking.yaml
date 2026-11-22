@@ -1,0 +1,5 @@
+%YAML:1.0
+---
+source: "MARK"
+# 数学量级初估、待标定；profile 为同目录文件路径。
+profile: "tracking_profile.yaml"

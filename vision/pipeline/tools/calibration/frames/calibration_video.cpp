@@ -1,0 +1,46 @@
+#include "frames/calibration_video.hpp"
+
+#include <iostream>
+
+// 打开视频并读取基本信息
+bool open_calibration_video(const CalibrationConfig &config, cv::VideoCapture &capture,
+                            CalibrationVideoInfo &info)
+{
+    capture.open(config.video_path_);
+
+    if (!capture.isOpened())
+    {
+        std::cerr << "无法打开标定视频: " << config.video_path_ << std::endl;
+
+        return false;
+    }
+
+    info.width_ = static_cast<int>(capture.get(cv::CAP_PROP_FRAME_WIDTH));
+
+    info.height_ = static_cast<int>(capture.get(cv::CAP_PROP_FRAME_HEIGHT));
+
+    return true;
+}
+
+// 根据帧编号列表抽取图像
+bool extract_frames_by_list(cv::VideoCapture &capture, const std::vector<int> &frame_list_,
+                            std::vector<SampledFrame> &frames_)
+{
+    for (int frame_index : frame_list_)
+    {
+        capture.set(cv::CAP_PROP_POS_FRAMES, frame_index);
+
+        cv::Mat frame;
+
+        if (!capture.read(frame))
+        {
+            std::cerr << "读取帧失败: " << frame_index << std::endl;
+
+            return false;
+        }
+
+        frames_.push_back({frame_index, frame});
+    }
+
+    return true;
+}
