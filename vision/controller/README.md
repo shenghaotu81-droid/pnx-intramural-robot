@@ -73,3 +73,5 @@ struct Command {
 ## 状态
 
 待写。
+
+独立构建控制器后可用 CTest 运行仿真 harness，构建命令与场景说明见 [tests/README.md](tests/README.md)。
