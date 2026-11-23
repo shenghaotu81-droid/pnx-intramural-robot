@@ -64,7 +64,7 @@ struct Command {
 ## 做法
 
 - 内部做旋转补偿（ω × p），再 P + 前馈。
-- 不做坐标变换、不解释语义。变换和期望状态由调用方（app 的适配层）给。
+- 不做坐标变换、不解释语义。变换和期望状态由调用方（adapter/ 库）给。
 
 ## 覆盖的动作
 
@@ -74,6 +74,6 @@ struct Command {
 
 - 生产代码：已完成（前馈 + 位置 P + 航向 P；yaw 门控 + EMA）。
 - 仿真：harness 已接入 CTest，6 项全过；推荐 Kp=3 /s、Kh=3 /s，见 [仿真报告](docs/sim-report.md)。
-- 待建：adapter、串口 0x0001 输出、G3。增益为仿真推荐值，上车后复核。
+- 待建：串口 0x0001 输出、G3。增益为仿真推荐值，上车后复核。
 
 独立构建控制器后可用 CTest 运行仿真 harness，构建命令与场景说明见 [tests/README.md](tests/README.md)。
