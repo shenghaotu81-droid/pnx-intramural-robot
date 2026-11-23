@@ -46,6 +46,8 @@ struct AdapterConfig {
     controller::Vec2 backup_target_position;    // BACKUP 的期望目标位置，车体系
     double scan_angular_velocity;               // SEARCH 的扫描角速度，rad/s
     double align_target_heading;                // ALIGN 的期望朝向，车体系，rad
+    double follow_target_heading;               // FOLLOW 的期望朝向，车体系，rad
+    double backup_target_heading;               // BACKUP 的期望朝向，车体系，rad
 };
 ```
 
@@ -79,13 +81,13 @@ private:
 
 ## 做法
 
-- 位置：`p_body = R · p_camera + t`，取 x、y。速度：`v_body = R · v_camera`（只转不平移），取 x、y。yaw：rvec 经 Rodrigues 得 R_cam，再 `R_body = R · R_cam`，取 `yaw = atan2(R_body(1,0), R_body(0,0))`。
+- 位置：`p_body = R · p_camera + t`，取 x、y。速度：`v_body = R · v_camera`（只转不平移），取 x、y。yaw：rvec 经 Rodrigues 得 R_cam，取 yaw = atan2(R_cam(0,2), R_cam(0,0))。相机系 y 是竖直轴，yaw 是绕 y 的转动，所以用 R(0,2)/R(0,0)。
 - 缺数据原样传 nullopt：位置/速度/rvec 丢了就是 nullopt，CurrentState 里对应字段也是 nullopt，不编值。G5 按 nullopt 处理，G3 按 P + 量测新鲜度判“真丢了”。
 - DesiredState 按 mode + target 拼：
-  - FOLLOW：target 是 Mark 取 `follow_target_position`，是 Tag 取 `approach_target_position`；期望朝向 0。
+  - FOLLOW：target 是 Mark 取 `follow_target_position`，是 Tag 取 `approach_target_position`；期望朝向取 follow_target_heading。
   - SEARCH：期望角速度取 `scan_angular_velocity`；期望位置、期望朝向都是 nullopt。
   - ALIGN：期望朝向取 `align_target_heading`；期望位置 nullopt（只转不移）。
-  - BACKUP：期望位置取 `backup_target_position`；期望朝向 0。
+  - BACKUP：期望位置取 `backup_target_position`；期望朝向取 backup_target_heading。
 - 几何变换只有一套，MARK 和 TAG 走同一套；分叉只在 FOLLOW 时取哪个期望位置。
 
 ## 依赖
