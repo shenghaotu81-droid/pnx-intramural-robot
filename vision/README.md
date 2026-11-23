@@ -6,7 +6,7 @@
 
 - `pipeline/`：视觉管线库，密封。检测 → 位姿 → 跟踪，内部不动。
 - `controller/`：通用控制器库。给定期望状态算速度，与系和语义无关。
-- `adapter/`：适配层库。把 G4 的相机系输出转成 G5 要的车体系状态，只做几何 + 语义，不做判断。
+- `adapter/`：适配层库。把 pipeline 的相机系输出转成车体系，按 mode 拼出 G5 要的 CurrentState/DesiredState，只做几何 + 语义，不做判断。
 - `app/`：应用层，状态机 + 串口，用 pipeline、adapter 和 controller 做决策并发速度指令。
 
 ## G1–G5 是什么
