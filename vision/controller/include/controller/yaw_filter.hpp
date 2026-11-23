@@ -1,0 +1,1 @@
+// YawFilter 类：门控 + EMA

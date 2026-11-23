@@ -1,0 +1,1 @@
+// Config：位置/航向增益 + yaw 门控阈值/EMA alpha

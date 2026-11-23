@@ -1,0 +1,1 @@
+// Controller 类：构造传 Config，update()，reset()
