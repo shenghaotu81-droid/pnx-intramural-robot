@@ -72,6 +72,8 @@ struct Command {
 
 ## 状态
 
-待写。
+- 生产代码：已完成（前馈 + 位置 P + 航向 P；yaw 门控 + EMA）。
+- 仿真：harness 已接入 CTest，6 项全过；推荐 Kp=3 /s、Kh=3 /s，见 [仿真报告](docs/sim-report.md)。
+- 待建：adapter、串口 0x0001 输出、G3。增益为仿真推荐值，上车后复核。
 
 独立构建控制器后可用 CTest 运行仿真 harness，构建命令与场景说明见 [tests/README.md](tests/README.md)。

@@ -506,7 +506,7 @@ int main(int argc, char **argv)
     if (mode == "mark")
     {
         print_mark_header();
-        const bool defaults_passed = report_mark(ControllerConfig{});
+        const bool defaults_passed = report_mark(gains(1.0, 1.0));// 基线固定 1.0/1.0，不跟 config 默认值走。
         const bool candidate_passed = report_mark(candidate);
         passed = defaults_passed && candidate_passed;
     }
@@ -514,7 +514,7 @@ int main(int argc, char **argv)
     {
         const Scenario scenario = mode == "tag-align" ? Scenario::TagAlign : Scenario::TagRetreat;
         print_tag_header();
-        const bool defaults_passed = report_tag(scenario, ControllerConfig{});
+        const bool defaults_passed = report_tag(scenario, gains(1.0, 1.0));// 基线固定 1.0/1.0，不跟 config 默认值走。
         const bool candidate_passed = report_tag(scenario, candidate);
         passed = defaults_passed && candidate_passed;
     }

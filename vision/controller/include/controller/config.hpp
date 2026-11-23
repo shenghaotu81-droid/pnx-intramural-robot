@@ -8,12 +8,12 @@ namespace controller
     // 增益单位是 1/s（位置误差 m → 速度 m/s；航向误差 rad → 角速度 rad/s）
     struct PositionConfig
     {
-        double gain = 1.0; // 位置环 P 增益，1/s
+        double gain = 3.0; // 位置环 P 增益，3/s
     };
 
     struct HeadingConfig
     {
-        double gain = 1.0; // 航向环 P 增益，1/s
+        double gain = 3.0; // 航向环 P 增益，3/s
     };
 
     struct YawFilterConfig
