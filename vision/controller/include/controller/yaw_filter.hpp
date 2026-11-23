@@ -19,7 +19,7 @@ namespace controller
         void reset();
 
         // 获取当前平滑值
-        double smoothed_yaw() const { return smoothed_yaw_; }
+        double smoothed_yaw() const;
 
       private:
         YawFilterConfig config_;

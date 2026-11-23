@@ -40,8 +40,8 @@ namespace controller
         }
         // 位置环 P 增益，1/s
         Vec2 position_p{0.0, 0.0};
-        position_p.x = config_.position.gain * position_error.x;
-        position_p.y = config_.position.gain * position_error.y;
+        position_p.x = config_.position.gain * -position_error.x;
+        position_p.y = config_.position.gain * -position_error.y;
         Vec2 total_command{0.0, 0.0};
         total_command.x = position_p.x + feedforward_velocity.x;
         total_command.y = position_p.y + feedforward_velocity.y;
@@ -54,7 +54,7 @@ namespace controller
             // 将角度误差限制在 [-π, π) 范围内
             heading_error = wrap_angle(heading_error);
         }
-        double heading_p = config_.heading.gain * heading_error;
+        double heading_p = config_.heading.gain * -heading_error;
         if (desired.angular_velocity.has_value()) // 覆盖
         {
             heading_p = desired.angular_velocity.value();
