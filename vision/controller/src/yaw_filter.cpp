@@ -38,10 +38,17 @@ namespace controller
     void YawFilter::reset()
     {
         initialized_ = false;
+        smoothed_yaw_ = 0.0;
+    }
+
+    // 获取当前平滑值
+    double YawFilter::smoothed_yaw() const
+    {
+        return smoothed_yaw_;
     }
 
     // wrap_angle 包到 [-π, π] 规范范围
-    double YawFilter::wrap_angle(double angle)
+    double wrap_angle(double angle)
     {
         while (angle > M_PI)
             angle -= 2 * M_PI;

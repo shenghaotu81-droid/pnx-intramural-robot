@@ -18,12 +18,15 @@ namespace controller
         // 清掉状态，下一次 update 重新初始化（丢目标 / 切模式时调）
         void reset();
 
-      private:
-        static double wrap_angle(double angle); // 把角度包到 [-π, π]
+        // 获取当前平滑值
+        double smoothed_yaw() const { return smoothed_yaw_; }
 
+      private:
         YawFilterConfig config_;
         double smoothed_yaw_ = 0.0;
         bool initialized_ = false;
     };
+
+    double wrap_angle(double angle); // 把角度包到 [-π, π]
 
 } // namespace controller
