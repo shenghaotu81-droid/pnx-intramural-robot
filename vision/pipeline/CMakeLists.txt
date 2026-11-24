@@ -12,6 +12,7 @@ add_subdirectory(src/config)
 add_subdirectory(src/detection)
 add_subdirectory(src/pose)
 add_subdirectory(src/tracking)
+add_subdirectory(src/pipeline)
 add_subdirectory(src/app)
 
 if(BUILD_TESTING)

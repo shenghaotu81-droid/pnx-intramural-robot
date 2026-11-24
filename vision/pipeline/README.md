@@ -27,6 +27,12 @@ build/marker_app --video vision/pipeline/docs/homework-setup/data/raw/marker_vid
 
 配置直接读取手填值，不检查字段类型/范围/schema。终端输入、视频读取、跨模块输入和运行期数值安全检查保留。资源路径相对配置目录解析，输出目录相对运行工作目录解析。
 
+## 按帧调用（库接口）
+
+`mark::Pipeline`（`include/vision/pipeline.hpp`）是 pipeline 按帧调用的入口：app 每帧给它一张图，它返回 G4 跟踪结果 + G2 位姿观测。输入 `PipelineInput`：一帧图像（`cv::Mat`，CV_8UC3，BGR 通道序；MaixCam 的 RGB888 要先转 BGR）+ 帧号 + 接收时间戳（微秒）。输出 `PipelineOutput`：`tracking::TrackingResult`（`tracks_` + `events_` + NIS）+ `std::vector<pose::PoseObservation>`（`source_` 区分 MARK / APRILTAG；跟踪器只吃 MARK，TAG 原样穿过给 app 的退出流程用）。
+
+调用方有两个：板上的 `vision/app/`（相机帧）和笔记本上的 `offline_runner`（视频文件帧），走同一条链。`vision/pipeline/src/app/` 是 pipeline 内部的离线串联层（offline_runner、导出、渲染、汇报），不是应用层；真正的应用层是 `vision/app/`（G3 + 串口 + main）。
+
 ## 使用边界
 
 R=diag(2e-8,2e-8,2.5e-7) m²、q=0.5 m²/s³、初速方差=0.25 m²/s² 是**初估、待标定**，依据见[调参与标定](docs/tuning-calibration.md)。空 profile 可关闭数值跟踪。录像没有真实位置/速度 ground truth，不能证明板端精度；coast 是预测，相机系速度包含自车运动。
