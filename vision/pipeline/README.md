@@ -13,7 +13,7 @@ cmake --build build -j4
 ctest --test-dir build --output-on-failure
 ```
 
-完整管线始终构建。`VISION_BUILD_TOOLS=OFF` 关闭应用和标定工具，`BUILD_TESTING=OFF` 关闭测试；两者同时关闭只构建算法库。各模块公开接口在 `include/vision/`。
+完整管线始终构建。`VISION_BUILD_TOOLS=OFF` 关闭应用和标定工具，`BUILD_TESTING=OFF` 关闭测试；两者同时关闭只构建算法库。关掉的是三块：`tools/apps`（marker_app）、`tools/calibration`（标定工具）、`src/app`（vision_app：offline_runner 等）；其中 `src/app` 需两个开关都关才跳过。各模块公开接口在 `include/vision/`。
 
 ## 运行
 
