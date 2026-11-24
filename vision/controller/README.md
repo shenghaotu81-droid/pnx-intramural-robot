@@ -61,6 +61,12 @@ struct Command {
 - 转着扫 TAG/MARK：当前状态目标字段全空，期望状态只给期望角速度 ω_scan。
 - 扫 RFID、1 分钟时限、自动/手动模式、矿石种类、隧道/台阶/插杆区：不是运动量，不进 G5 接口（G3 或机构负责）。
 
+## 加载配置
+
+`controller/config_loader.hpp` 声明了 `controller::ControllerConfig controller::load_controller_config(const std::filesystem::path &path)`。启动时调用 `controller::load_controller_config(config_dir / "controller.yaml")`，将结果传给 `Controller` 构造函数。文件打不开时抛出 `std::runtime_error("CONTROLLER_CONFIG_OPEN_FAILED")`。缺少整组或组内某个字段时，对应参数保留结构体默认值。
+
+加载器使用 OpenCV core 的 `FileStorage` 读取 YAML，库私有链接 `opencv_core`，公共头文件只用 C++17 标准库。部署时将模板复制到配置目录，修改增益或 yaw 滤波参数后重启生效。[配置模板](config/controller.yaml) · [加载器验证报告](docs/config-loader-report.md)
+
 ## 做法
 
 - 内部做旋转补偿（ω × p），再 P + 前馈。

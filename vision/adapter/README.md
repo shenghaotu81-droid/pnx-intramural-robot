@@ -54,6 +54,12 @@ struct AdapterConfig {
 - `rotation` / `translation`：外参。R 是相机系到车体系的旋转（含坐标约定差和安装角）；t 是相机光心在车体系的位置（x 前向、y 侧向、z 高度），实测填。
 - 期望值命名跟 DesiredState 的字段对齐（`follow_target_position` 对应 `DesiredState.target_position`），都是车体系，都是实测值。
 
+### 加载配置
+
+`adapter/config_loader.hpp` 声明了 `adapter::AdapterConfig adapter::load_adapter_config(const std::filesystem::path &path)`。启动时调用 `adapter::load_adapter_config(config_dir / "adapter.yaml")`，将结果传给 `Adapter` 构造函数。文件打不开时抛出 `std::runtime_error`，消息为 `ADAPTER_CONFIG_OPEN_FAILED:<路径>`。文件中省略的字段保留 `AdapterConfig` 默认值。
+
+部署时将模板复制到配置目录，调参后重启生效。[配置模板](config/adapter.yaml) · [加载器验证报告](docs/config-loader-report.md)
+
 ### Mode / Target
 
 ```cpp

@@ -1,0 +1,4 @@
+%YAML:1.0
+---
+yaw_filter:
+  alpha: 0.0

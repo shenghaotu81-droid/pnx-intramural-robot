@@ -26,8 +26,6 @@ G1–G5 是管线里五个环节的代号：
 
 ## 构建
 
-pipeline 可单独构建验证：`cmake -S vision/pipeline -B build && cmake --build build`，再 `ctest --test-dir build`（11/11 通过）。
-
-vision 层的 CMakeLists（把 pipeline、controller 和 app 串起来）待补全。
+`vision/CMakeLists.txt` 可一起构建 pipeline、controller 和 adapter。运行三个模块的测试时，分别从各模块目录独立构建并执行 CTest。例如 pipeline 使用 `cmake -S vision/pipeline -B build/pipeline-test && cmake --build build/pipeline-test && ctest --test-dir build/pipeline-test --output-on-failure`。
 
 当前结果可视化呈现（来自 pipeline）：[outputs](pipeline/docs/homework-setup/outputs/marker/overlay.avi)

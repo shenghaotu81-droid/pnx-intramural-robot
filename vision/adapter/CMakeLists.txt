@@ -9,7 +9,7 @@ if(NOT TARGET controller)
 endif()
 
 # 适配层库
-add_library(adapter src/adapter.cpp)
+add_library(adapter src/adapter.cpp src/config_loader.cpp)
 target_include_directories(adapter PUBLIC include)
 target_compile_features(adapter PUBLIC cxx_std_17)
 target_include_directories(adapter PUBLIC ${OpenCV_INCLUDE_DIRS})

@@ -1,0 +1,7 @@
+%YAML:1.0
+---
+camera:
+  calibration: "calibration.yaml"
+geometry:
+  source_unit: "mm"
+  model_points: [[0, 0], [40, 0], [40, 60], [0, 60]]

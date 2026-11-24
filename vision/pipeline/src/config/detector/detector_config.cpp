@@ -16,16 +16,23 @@ namespace mark::detector
             throw std::runtime_error("CONFIG_OPEN_FAILED:" + path.string());
         // 默认构造（带默认值）
         detector::DetectorConfig d;
-        // 空节点 → static_cast 直接转出 0 → 覆盖掉 struct 默认值
-        // 按层级取 YAML 节点
-        d.preprocess_ = {config_value::integer(fs["preprocess"]["work_width"]),
-                         config_value::integer(fs["preprocess"]["work_height"]),
-                         config_value::integer(fs["preprocess"]["threshold"])};
-        d.geometry_ = {config_value::integer(fs["geometry"]["white_threshold"]),
-                       config_value::number(fs["geometry"]["approximation_epsilon"])};  // approximation_epsilon 是 approxPolyDP 的拟合误差
+        const auto preprocess = fs["preprocess"], geometry = fs["geometry"];
+        if (!preprocess["work_width"].empty())
+            d.preprocess_.work_width_ = config_value::integer(preprocess["work_width"]);
+        if (!preprocess["work_height"].empty())
+            d.preprocess_.work_height_ = config_value::integer(preprocess["work_height"]);
+        if (!preprocess["threshold"].empty())
+            d.preprocess_.threshold_ = config_value::integer(preprocess["threshold"]);
+        if (!geometry["white_threshold"].empty())
+            d.geometry_.white_threshold_ = config_value::integer(geometry["white_threshold"]);
+        if (!geometry["approximation_epsilon"].empty())
+            d.geometry_.approximation_epsilon_ = config_value::number(geometry["approximation_epsilon"]);
         const auto mapping = fs["corner"]["physical_to_screen"];
-        for (int i = 0; i < 4; ++i)
-            d.corner_.physical_to_screen_[i] = config_value::integer(mapping[i]);
+        if (!mapping.empty())
+        {
+            for (int i = 0; i < 4; ++i)
+                d.corner_.physical_to_screen_[i] = config_value::integer(mapping[i]);
+        }
         return d;
     }
 }

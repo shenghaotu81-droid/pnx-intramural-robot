@@ -25,7 +25,7 @@ build/marker_app --video vision/pipeline/docs/homework-setup/data/raw/marker_vid
 
 默认输出 `outputs/marker/{observations.yaml,tracks.yaml,summary.yaml,overlay.avi}`。已有目录可复用，同名文件覆盖；更改 `video_filename` 可保留不同叠加视频，文件名使用 `.avi`。`overlay: false` 关闭视频编码与渲染，位姿/跟踪/汇总仍写出。视频固定 MJPG，关闭编码器后从临时 AVI 发布。
 
-配置直接读取手填值，不检查字段类型/范围/schema。终端输入、视频读取、跨模块输入和运行期数值安全检查保留。资源路径相对配置目录解析，输出目录相对运行工作目录解析。
+配置文件中出现的字段覆盖结构体默认值，省略的字段保留默认值。主配置或所引用的文件打不开时抛出异常。加载器直接读取手填值，不检查字段类型、范围或 schema。终端输入、视频读取、跨模块输入和运行期数值安全检查保留。资源路径相对配置目录解析，输出目录相对运行工作目录解析。[加载器验证报告](docs/config-loader-report.md)
 
 ## 按帧调用（库接口）
 

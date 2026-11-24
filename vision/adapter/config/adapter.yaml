@@ -1,0 +1,15 @@
+%YAML:1.0
+---
+rotation: !!opencv-matrix
+  rows: 3
+  cols: 3
+  dt: d
+  data: [0, 0, 1, -1, 0, 0, 0, -1, 0]
+translation: [0, 0, 0]
+follow_target_position: [0.5, 0.0]
+approach_target_position: [0.5, 0.0]
+backup_target_position: [0.5, 0.0]
+follow_target_heading: 0.0
+backup_target_heading: 0.0
+align_target_heading: 0.0
+scan_angular_velocity: 0.5

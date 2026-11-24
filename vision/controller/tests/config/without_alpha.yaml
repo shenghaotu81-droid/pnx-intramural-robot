@@ -1,0 +1,8 @@
+%YAML:1.0
+---
+position:
+  gain: 4.0
+heading:
+  gain: 2.0
+yaw_filter:
+  gate_threshold: 0.25
