@@ -1,0 +1,5 @@
+%YAML:1.0
+---
+camera: { calibration: "calibration.yaml" }
+geometry: { model_points: [[0,0], [80,0], [80,80], [0,80]], source_unit: "mm" }
+tag: { allowed_ids: [0], sizes: [] }

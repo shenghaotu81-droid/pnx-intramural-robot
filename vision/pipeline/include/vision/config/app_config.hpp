@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "vision/config/detector_config.hpp"
+#include <filesystem>
 
 namespace mark
 {
@@ -14,7 +14,6 @@ namespace mark
 
     struct AppConfig
     {
-        detector::DetectorConfig detector_config_;
         OfflineRunConfig offline_;
     };
 

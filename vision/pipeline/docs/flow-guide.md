@@ -4,22 +4,29 @@
 
 ```mermaid
 flowchart TD
-    A[视频 BGR 原图 帧号/FPS] --> B[工作图白片分割]
-    B --> C[三 L 一短 M 匹配 粗四边形]
-    C --> D[屏幕排序 固定安装映射]
-    D --> E[当前原图四个真实角片]
-    E --> F[两组连续边支持 各一次 L2 求交]
-    F --> G[float 发布 屏幕 LT RT RB LB 和 orientation_]
-    G --> P[按 orientation_ 恢复物理角顺序]
-    P --> H[平面 IPPE 合法候选 重投影 RMSE]
-    H --> I[可选名义位姿 位置分歧 S]
-    I --> J[量测噪声 R_profile + S]
-    J --> K[CV 预测 更新或 coast]
-    I --> O[位姿 轨迹 汇总文件]
+    A[离线读视频并计算帧戳]
+    subgraph PL[Pipeline.process]
+        B[工作图白片分割] --> C[三 L 一短 M 匹配]
+        C --> D[屏幕排序与安装映射]
+        D --> E[在原图求四个角点]
+        E --> P[按物理顺序求 MARK 位姿]
+        BGR[BGR 原图与输入帧戳] --> B
+        BGR --> T[可选 Tag 检测与位姿]
+        P --> I[按 MARK 再 TAG 排列观测]
+        T --> I
+        I --> K[跟踪器按来源筛选并更新或 coast]
+    end
+    A --> BGR
+    subgraph OFF[离线输出]
+        O[写观测与轨迹并汇总]
+        V[可选渲染与 MJPG 编码]
+    end
+    I --> O
     K --> O
-    G --> V[可选叠加 MJPG/AVI]
     I --> V
     K --> V
+    E -. last_detection .-> O
+    E -. last_detection .-> V
 ```
 
 ## 1. 启动与配置
@@ -27,15 +34,15 @@ flowchart TD
 从仓库根目录执行：
 
 ```bash
-cmake -S src/tushenghao -B build -DCMAKE_BUILD_TYPE=Release
+cmake -S vision -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j4
 ctest --test-dir build --output-on-failure
-build/marker_app --video src/tushenghao/docs/homework-setup/data/raw/marker_video.avi
+build/marker_app --video vision/pipeline/docs/homework-setup/data/raw/marker_video.avi
 ```
 
 依赖 C++17、OpenCV ≥4.6 和 AprilTag ≥3.3。始终构建检测、位姿和跟踪；`VISION_BUILD_TOOLS=OFF` 关闭应用/标定工具，`BUILD_TESTING=OFF` 关闭测试与验证工具。两者同时关闭时只构建算法库。
 
-入口 `tools/apps/marker/main.cpp` 只接受 `--video VIDEO`，检查未知、缺值、重复参数和把选项误写为值的情况。配置目录固定为源树 `config/`；先分别调用 `mark::detector::load_detector_config` 和 `mark::load_offline_config`，再调用 `run_offline`。位姿和跟踪配置从同目录加载。
+入口 `tools/apps/marker/main.cpp` 只接受 `--video VIDEO`，检查未知、缺值、重复参数和把选项误写为值的情况。配置目录固定为源树 `config/`；main 加载 offline.yaml 后调用 `run_offline`。runner 打开视频并检查 FPS 后构造一次 Pipeline，构造函数从该目录加载 detector.yaml、pose.yaml 和 tracking.yaml。
 
 | 配置 | 内容与消费者 |
 |---|---|
@@ -56,7 +63,7 @@ P0、P2、P3 分别取模型左上、右下、左下 L 片的外侧边交点。P
 
 安装核验：拍清晰图，对照实物/图纸标 P0…P3，检查叠加屏幕槽位与配置一致；让轨道走一遍并覆盖预期晃动，确认上下两带和带内次序不交换。换装/换相机后重做。固定映射不支持跨 90° 翻转或使上下带交换的严重透视。
 
-`run_offline` 打开视频，保留 `INPUT_OPEN_FAILED` 与 `INPUT_FPS_INVALID`：FPS 必须有限且为正，才能生成时间戳及跟踪 dt。录像名义时间为 `llround(frame_id × 1e6 / fps)`，写入 `CaptureStamp.received_us_`。每帧依次检测、位姿、跟踪、写文件；无检测帧也进入后两步。
+`run_offline` 打开视频，保留 `INPUT_OPEN_FAILED` 与 `INPUT_FPS_INVALID`：FPS 必须有限且为正，才能生成时间戳及跟踪 dt。录像名义时间为 `llround(frame_id × 1e6 / fps)`，写入 `CaptureStamp.received_us_`。runner 将图像、帧号和微秒时刻交给 `Pipeline::process`。Pipeline 用输入帧戳串联检测、MARK 位姿、可选 Tag 位姿与跟踪，缺检帧继续推进跟踪。runner 用同一输入帧戳写观测文件，从返回值写位姿、完整跟踪结果并汇总。它在下一帧前读取 `last_detection()` 的检测状态和角点，叠加投影使用 `pose_config()`。
 
 ## 2. Detection：从当前帧得到真实四角
 
@@ -73,7 +80,7 @@ P0、P2、P3 分别取模型左上、右下、左下 L 片的外侧边交点。P
 | corners/corner_edge_fit.cpp/hpp | 连续支持提取、两条 L2 直线与交点 |
 | pipeline/decode_stage.cpp/hpp | 安装映射、逐角解析、float 发布和检测编排 |
 
-类型在 `include/vision/types/`：`detector_types.hpp` 存帧输入、检测与 `FrameResult`；`corner_types.hpp` 存共享四角类型和排序声明；`prepared_frame_types.hpp` 存工作图、坐标映射与 `WhiteComponent`。解码和公开入口共用 `FrameResult`，没有重复结果容器。所有结构成员使用下划线后缀，普通函数使用 snake_case。
+类型在 `include/vision/types/`：`detector_types.hpp` 存帧输入、检测与 `FrameResult`；`corner_types.hpp` 存共享四角类型和排序声明；`prepared_frame_types.hpp` 存工作图、坐标映射与 `WhiteComponent`。解码和公开入口共用 `FrameResult`，没有重复结果容器。上述算法类型的成员使用下划线后缀，普通函数使用 snake_case。
 
 **输入边界。** `Detector::process` 检查非空 2D BGR8、非负时间及递增帧号/不倒退时间，防止非法图像进入 OpenCV。相同时间戳可检测，跟踪另要求不同时间才能测速度。原图只读。preprocess 不重复检查格式或手填配置。
 

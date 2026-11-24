@@ -1,3 +1,4 @@
+#include "vision/config/detector_config.hpp"
 #include "vision/config/app_config.hpp"
 #include "vision/config/pose_config.hpp"
 #include "vision/config/tracking_config.hpp"

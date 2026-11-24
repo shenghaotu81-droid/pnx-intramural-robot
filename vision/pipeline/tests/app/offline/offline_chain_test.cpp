@@ -1,5 +1,4 @@
 #include "offline/offline_runner.hpp"
-#include "vision/config/detector_config.hpp"
 #include "block3_fixture.hpp"
 #include "assertions.hpp"
 #include <chrono>
@@ -14,7 +13,7 @@ void unique_chain(const std::filesystem::path &root, const std::filesystem::path
 {
     const auto config = root / "unique-config";
     std::filesystem::create_directory(config);
-    for (const auto &name:{"pose.yaml", "tracking.yaml", "calibration.yaml"})
+    for (const auto &name:{"detector.yaml", "pose.yaml", "tracking.yaml", "calibration.yaml"})
         std::filesystem::copy_file(source / "config" / name, config / name);
     auto replace = [&](const char *name, const char *key, const char *value)
                    {
@@ -64,8 +63,7 @@ initial_velocity_variance_m2ps2: 4.
         writer.write(image_);
     }
     writer.release();
-    mark::AppConfig app{mark::detector::load_detector_config(source / "config/detector.yaml"),
-                        mark::load_offline_config(source / "config/offline.yaml")};
+    mark::AppConfig app{mark::load_offline_config(source / "config/offline.yaml")};
     app.offline_.run_directory_ = (root / "pose-run").string();
     mark::run_offline(app, video.string(), config);
     cv::FileStorage poses_((root / "pose-run/observations.yaml").string(), cv::FileStorage::READ);
@@ -99,8 +97,7 @@ int main()
         for (int i = 0; i < 4; ++i)
             writer.write(i == 2 ? cv::Mat::zeros(image_.size(), image_.type()) : image_);
         writer.release();
-        mark::AppConfig app{mark::detector::load_detector_config(source / "config/detector.yaml"),
-                        mark::load_offline_config(source / "config/offline.yaml")};
+        mark::AppConfig app{mark::load_offline_config(source / "config/offline.yaml")};
         app.offline_.run_directory_ = (root / "run").string();
         test_support::check(mark::run_offline(app, video.string(), source / "config") == 0, "offline chain failed");
         cv::VideoCapture output((root / "run/overlay.avi").string());

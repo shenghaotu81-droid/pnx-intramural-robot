@@ -1,0 +1,15 @@
+add_executable(pipeline_api_test pipeline_api_test.cpp)
+target_link_libraries(pipeline_api_test PRIVATE vision_pipeline)
+target_include_directories(pipeline_api_test PRIVATE "${VISION_ROOT}/tests/support/common")
+
+set(video "${VISION_ROOT}/docs/homework-setup/data/raw/marker_video.avi")
+add_test(NAME pipeline_sequence COMMAND pipeline_api_test "${VISION_ROOT}/config" "${video}")
+
+set(tag_config "${CMAKE_CURRENT_BINARY_DIR}/tag")
+foreach(name detector calibration)
+    configure_file("${VISION_ROOT}/config/${name}.yaml" "${tag_config}/${name}.yaml" COPYONLY)
+endforeach()
+foreach(name pose tracking)
+    configure_file("tag/${name}.yaml" "${tag_config}/${name}.yaml" COPYONLY)
+endforeach()
+add_test(NAME pipeline_tag_no_profile COMMAND pipeline_api_test "${tag_config}" "${video}" tag)

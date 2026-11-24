@@ -46,14 +46,22 @@ namespace mark
         Pipeline(const Pipeline &) = delete;
         Pipeline &operator=(const Pipeline &) = delete;
 
-        // 每帧调一次。
+        // 同一帧流复用一个实例，按序串行调用。
         PipelineOutput process(const PipelineInput &input);
+
+        // 两个引用都借自本实例。配置中的 Mat 及其共享数据只供读取。
+        const pose::PoseConfig &pose_config() const { return pose_config_; }
+
+        // process 正常返回后读取本帧结果。下一次调用覆盖缓存，跨帧保留请复制。
+        const detector::FrameResult &last_detection() const { return last_detection_; }
 
       private:
         detector::Detector detector_;
+        pose::PoseConfig pose_config_;
         pose::PoseEstimator solver_;
         std::unique_ptr<pose::TagDetector> tag_detector_;
         tracking::TargetTracker tracker_;
+        detector::FrameResult last_detection_;
     };
 
 } // namespace mark

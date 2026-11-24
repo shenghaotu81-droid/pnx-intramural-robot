@@ -1,14 +1,10 @@
 // 逐帧写观测和轨迹，运行结束后写汇总。叠加视频可选。
 #include "offline/offline_runner.hpp"
 #include "vision/pose/pose_io.hpp"
-#include "vision/config/detector_config.hpp"
-#include "vision/detection/detector.hpp"
+#include "vision/pipeline.hpp"
 #include "rendering/debug_renderer.hpp"
 #include "reporting/run_console.hpp"
 #include "export/video_exporter.hpp"
-#include "vision/pose/pose_estimator.hpp"
-#include "vision/pose/tag_detector.hpp"
-#include "vision/tracking/target_tracker.hpp"
 #include "io/tracking_io.hpp"
 #include <chrono>
 #include <cmath>
@@ -30,19 +26,7 @@ namespace mark
         if (!std::isfinite(fps) || fps <= 0)
             throw std::runtime_error("INPUT_FPS_INVALID");
 
-        detector::Detector detector(app.detector_config_);
-
-        const auto pose_config = pose::load_pose_config(config_dir / "pose.yaml");
-        pose::PoseEstimator solver(pose_config);
-
-        std::unique_ptr<pose::TagDetector> tag_detector;
-        if (!pose_config.tag_.allowed_ids_.empty())
-            tag_detector = std::make_unique<pose::TagDetector>(pose_config.tag_);
-
-        const auto tracking_config = tracking::load_tracking_config(config_dir / "tracking.yaml");
-        if (!tracking_config.profile_)
-            std::cout << "Tracking profile未配置：跳过跟踪数值计算\n";
-        tracking::TargetTracker tracker(tracking_config);
+        Pipeline pipeline(config_dir);
 
         const std::filesystem::path directory(app.offline_.run_directory_);
         std::filesystem::create_directories(directory);
@@ -68,54 +52,25 @@ namespace mark
             // 用帧号和 FPS 推算离线名义时间，四舍五入到整数微秒。
             const long double timestamp = static_cast<long double>(id) * 1e6L / fps;
 
-            detector::FrameInput input{image_, id, std::llround(timestamp)};
+            const PipelineInput input{image_, id, std::llround(timestamp)};
+            const auto output = pipeline.process(input);
+            const auto &raw = pipeline.last_detection();
+            const auto &result = output.tracking;
 
-            const auto raw = detector.process(input);
             summary.add(raw);
-
-            std::vector<pose::PoseObservation> poses_;
-            std::vector<tracking::TargetTrack> tracks_;
-
-            pose::CaptureStamp stamp;
-
-            stamp.frame_id_ = id;
-            stamp.received_us_ = input.timestamp_us_;
-
-            // 每帧至少保留一条 MARK 观测。无检测时估计和原因都为空。
-            for (size_t i = 0; i < std::max(size_t(1), raw.detections_.size()); ++i)
-                poses_.push_back(solver.estimate_mark(raw, i, image_.size(), stamp));
-
-            if (tag_detector)
-                for (const auto &tag : tag_detector->detect(image_, stamp))
-
-                    poses_.push_back(pose::estimate_exit(tag, image_.size(), solver));
-
-            // 按观测条数累计位姿状态。启用 Tag 时一帧可有多条观测。
-            for (const auto &p : poses_)
+            for (const auto &p : output.poses)
                 ++summary.poses_[pose::pose_status_name(p)];
-
-            tracking::TrackingFrame frame;
-            frame.stamp_ = stamp;
-            frame.observations_ = poses_;
-
-            // 缺检测时继续推进已有轨迹。数值失败时，跟踪器保留已提交状态。
-            const auto result = tracker.step(frame);
-
-            tracks_ = result.tracks_;
-
-            for (const auto &t : tracks_)
-
+            for (const auto &t : result.tracks_)
                 ++summary.tracks_[tracking::track_state_name(t.state_)];
             for (const auto &event : result.events_)
-
                 ++summary.reasons_[event];
 
             tracking::write_tracking_result(tracks_file, result);
 
             observations << "{" << "stamp";
-            pose::write_capture_stamp(observations, stamp);
+            pose::write_capture_stamp(observations, {input.frame_id, input.timestamp_us});
             observations << "observations" << "[";
-            for (const auto &p : poses_)
+            for (const auto &p : output.poses)
                 pose::write_pose_observation(observations, p);
             observations << "]" << "}";
 
@@ -124,7 +79,8 @@ namespace mark
                 if (id == 0)
                     exporter.open(directory / app.offline_.video_filename_, image_.size(), fps);
 
-                exporter.write(render_debug_frame(image_, raw, poses_, tracks_, &pose_config));
+                exporter.write(render_debug_frame(image_, raw, output.poses, result.tracks_,
+                                                  &pipeline.pose_config()));
             }
         }
 
