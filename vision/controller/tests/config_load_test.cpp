@@ -18,13 +18,14 @@ namespace
 
     void check_missing_file()
     {
+        const std::filesystem::path path = "config/missing.yaml";
         try
         {
-            controller::load_controller_config("config/missing.yaml");
+            controller::load_controller_config(path);
         }
         catch (const std::runtime_error &error)
         {
-            if (std::string(error.what()) == "CONTROLLER_CONFIG_OPEN_FAILED")
+            if (error.what() == "CONTROLLER_CONFIG_OPEN_FAILED:" + path.string())
                 return;
             throw;
         }

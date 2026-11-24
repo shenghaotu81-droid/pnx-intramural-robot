@@ -63,7 +63,7 @@ struct Command {
 
 ## 加载配置
 
-`controller/config_loader.hpp` 声明了 `controller::ControllerConfig controller::load_controller_config(const std::filesystem::path &path)`。启动时调用 `controller::load_controller_config(config_dir / "controller.yaml")`，将结果传给 `Controller` 构造函数。文件打不开时抛出 `std::runtime_error("CONTROLLER_CONFIG_OPEN_FAILED")`。缺少整组或组内某个字段时，对应参数保留结构体默认值。
+`controller/config_loader.hpp` 声明了 `controller::ControllerConfig controller::load_controller_config(const std::filesystem::path &path)`。启动时调用 `controller::load_controller_config(config_dir / "controller.yaml")`，将结果传给 `Controller` 构造函数。文件打不开时抛出 `std::runtime_error`，消息为 `CONTROLLER_CONFIG_OPEN_FAILED:<路径>`，其中路径为调用方传入的文件路径。缺少整组或组内某个字段时，对应参数保留结构体默认值。
 
 加载器使用 OpenCV core 的 `FileStorage` 读取 YAML，库私有链接 `opencv_core`，公共头文件只用 C++17 标准库。部署时将模板复制到配置目录，修改增益或 yaw 滤波参数后重启生效。[配置模板](config/controller.yaml) · [加载器验证报告](docs/config-loader-report.md)
 

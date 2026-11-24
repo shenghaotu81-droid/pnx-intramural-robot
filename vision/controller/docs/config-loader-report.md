@@ -14,7 +14,9 @@
 
 独立 Release 构建成功，CTest **7/7 通过**，包括六项仿真和新增的 `controller_config_load_test`。该测试只链接 `controller`，编译命令中只有 controller 的项目头文件路径。
 
-完整模板与默认构造结果逐项相等。只给 `yaw_filter.alpha` 写入零时，其余三项取默认。只省略 `alpha` 时，其值回退到 0.5，两个不同的增益和门控阈值均取文件中的值。这两组配置同时检查了缺省整组与缺省同组字段。缺文件时得到 `std::runtime_error("CONTROLLER_CONFIG_OPEN_FAILED")`。
+完整模板与默认构造结果逐项相等。只给 `yaw_filter.alpha` 写入零时，其余三项取默认。只省略 `alpha` 时，其值回退到 0.5，两个不同的增益和门控阈值均取文件中的值。这两组配置同时检查了缺省整组与缺省同组字段。
+
+缺文件用例传入 `config/missing.yaml`，断言抛出的 `std::runtime_error` 消息恰为 `CONTROLLER_CONFIG_OPEN_FAILED:config/missing.yaml`。该格式与 adapter 一致，保留调用方传入的路径，便于定位打开失败的文件。
 
 ```sh
 cmake -S vision/controller -B build/loaders-controller -DCMAKE_BUILD_TYPE=Release

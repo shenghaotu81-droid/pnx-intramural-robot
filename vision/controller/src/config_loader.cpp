@@ -9,7 +9,7 @@ namespace controller
     {
         cv::FileStorage fs(path.string(), cv::FileStorage::READ);
         if (!fs.isOpened())
-            throw std::runtime_error("CONTROLLER_CONFIG_OPEN_FAILED");
+            throw std::runtime_error("CONTROLLER_CONFIG_OPEN_FAILED:" + path.string());
 
         ControllerConfig config;
         const auto position = fs["position"], heading = fs["heading"], yaw = fs["yaw_filter"];
