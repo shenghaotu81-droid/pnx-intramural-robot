@@ -4,10 +4,12 @@
 
 | 测试组 | 覆盖范围 |
 | --- | --- |
-| 完整配置 | camera.yaml 六个字段都写时，全部正确读入 |
-| 缺字段留默认 | 缺字段时保留结构体默认值（width 1440、height 1080、format "BGR888"、fps 30、buff_num 1、skip_frames 10） |
-| 缺文件抛错 | 文件不存在时抛错，错误信息带路径 |
-| 未知格式抛错 | format 写了未知字符串时抛错 |
+| 完整配置 | `config/full.yaml` 核对六个字段，五个数值字段均使用非默认值 |
+| 缺字段留默认及显式零值 | `config/partial.yaml` 只设置宽度和小数帧率，`config/zero_skip_frames.yaml` 只设置 `skip_frames: 0`。两次加载都核对其余字段的默认值 |
+| 缺文件抛错 | 路径 `config/missing.yaml` 不存在，核对 `std::runtime_error` 及含完整输入路径的错误信息 |
+| 未知格式抛错 | `config/unknown_format.yaml` 和 `config/lowercase_format.yaml` 分别使用 `FOO` 和 `bgr888`，核对异常类型及含原始格式值的错误信息 |
+| 合法 YAML 无配置字段 | `config/no_fields.yaml` 含 OpenCV YAML 文件头、文档标记和注释，六个字段均取默认值 |
+| 空文件和纯注释文件 | `config/empty.yaml` 为零字节，`config/comment_only.yaml` 只有一行注释，两者均触发 OpenCV 解析异常 |
 
 ## 运行
 

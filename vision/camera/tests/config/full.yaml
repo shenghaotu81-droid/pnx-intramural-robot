@@ -1,0 +1,8 @@
+%YAML:1.0
+---
+width: 1280
+height: 720
+format: "BGR888"
+fps: 25
+buff_num: 3
+skip_frames: 5
