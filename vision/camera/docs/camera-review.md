@@ -1,5 +1,7 @@
 # MaixCAM 相机封装审阅报告
 
+本文记录 `19dd5ac` 的外部缓冲区实现。当时的代码行号可在历史快照中核对。当前分支已切换为无参读取。[历史审阅快照](https://github.com/shenghaotu81-droid/pnx-intramural-robot/blob/fe4ba66bba2e3620e736d727d57f2d6056b8ddb5/vision/camera/docs/camera-review.md) · [当前接口与验证结果](read-refactor-report.md)
+
 `camera.cpp` 对 `Camera` 构造、`open`、`read`、`skip_frames` 的参数和重载选择正确。MaixCAM 正常取帧时，返回的 `Image` 借用 OpenCV 的像素内存，两处 `delete img` 均符合 SDK 的所有权约定。**默认 1440×1080 配置可能在成功丢弃 10 帧后，仍读不到第一帧。** 预热由 SDK 分配像素内存，正式读取使用封装提供的缓冲区，只有后者会触发驱动尺寸与缓冲区容量的检查。
 
 审阅基线为项目 `19dd5ac7300a` 和本地 `/home/tushenghao/projects/MaixCDK` 的 `30f4b8b7e3f6`。项目指定 MaixCAM，SDK 在 `PLATFORM_MAIXCAM` 下编译 `port/maixcam/maix_camera_mmf.cpp`。以下以该后端、普通彩色采集和仓库自带的相机配置为准。[项目平台说明](../../README.md) · [SDK 平台选择](../../../../MaixCDK/components/vision/CMakeLists.txt#L28) · [相机配置](../config/camera.yaml)

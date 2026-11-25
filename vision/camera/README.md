@@ -12,15 +12,15 @@ camera 库是一个转换器：把 MaixCDK 相机（`maix::camera::Camera` + `ma
 namespace camera {
 
 struct Frame {
-    cv::Mat image;          // BGR, CV_8UC3, 1440x1080
-    uint64_t frame_id;      // 从 0 开始，每帧 +1
+    cv::Mat image;          // 借用当前 Image 的 BGR 像素，CV_8UC3，尺寸同配置
+    uint64_t frame_id;      // 每个相机实例从 0 开始，每次成功读帧加 1
     int64_t timestamp_us;   // 单调时钟，微秒
 };
 
 class Camera {
 public:
     explicit Camera(const CameraConfig& config);
-    Frame read();  // 阻塞读一帧；读不到抛 std::runtime_error
+    Frame read();  // 阻塞读取一次，失败抛 std::runtime_error
 };
 
 }  // namespace camera
@@ -28,11 +28,15 @@ public:
 
 ## 行为
 
-- **构造**：按 config 打开 MaixCDK 相机，打开失败抛异常；打开后调用 `skip_frames` 丢启动不稳定帧。
-- **read()**：阻塞等下一帧，主循环的驱动。零拷贝：用 `read(buff)` 直接读进库里的 buffer，`Frame.image` 引用这块 buffer，下一次 `read()` 会覆盖。app 必须在一帧处理完之前用完它（主循环是顺序的，天然满足）。`read(buff)` 返回一个 `Image*`，库里用完必须 `delete`（只释放 Image 外壳，不释放 buffer——buffer 是库里 cv::Mat 的，下一帧复用）；不 delete 会每帧漏一个 Image 对象。
-- **读不到帧**：底层返回 nullptr 时抛 `std::runtime_error`。
-- **格式**：构造相机时指定 `FMT_BGR888`，直接出 BGR；驱动出不了 BGR888 时 MaixCDK 内部转（Camera 有 `_format_impl`），库里不用再 cvtColor。app 拿到的永远是 BGR。
-- **时间戳**：相机 API 没有硬件时间戳，库里用 frame_id 计数器 + 单调时钟（steady_clock）打。
+构造时依次创建 SDK Camera、显式 `open()`、调用 `skip_frames()` 预热。任一阶段失败均抛 `std::runtime_error`，消息包含阶段（`construct`、`open` 或 `skip_frames`）及 SDK 原因。预热帧不计入 `frame_id`。
+
+每次 `read()` 调用一次 SDK 的无参阻塞读取。SDK 分配 Image，将驱动的 RGB 像素换序写入紧密排列的 BGR888 数据。封装持有该 Image，用 `cv::Mat` 直接引用其像素，交给管线时没有额外的整帧拷贝。`timestamp_us` 取自读取完成时的单调时钟。
+
+**借用期限。** `Frame.image` 及其所有 Mat 浅拷贝在下次 `read()` **开始时**或所属 Camera 析构时失效，以先发生者为准，即便这次读取随后抛出异常。顺序主循环应先处理完当前帧再读。跨帧保存、异步处理或在销毁 Camera 后继续使用像素，须在借用期内执行 `frame.image.clone()`。
+
+**读取失败由 app 处理。** SDK 抛出异常、返回空图像、像素地址为空，或图像格式及尺寸与配置不符时，`read()` 抛出带原因的 `std::runtime_error`。失败不消耗帧号。库内每次只读一次，app 可决定再次读取、销毁并按原配置重建 Camera，或结束采集。新实例首个成功帧的帧号为 0。
+
+当前 MaixCAM SDK 在取出驱动帧后才分配 Image 像素。若分配失败，驱动帧可能未归还，单缓冲下后续读取可能继续超时。封装允许析构和重建，板端能否在该故障后恢复取决于 SDK 和驱动。[实施报告](docs/read-refactor-report.md)
 
 ## 配置 camera.yaml
 
