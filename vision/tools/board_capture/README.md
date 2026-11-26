@@ -16,6 +16,8 @@
 
 录像为无音频的 H.265 裸码流，可用支持 HEVC 的播放器打开。相机和编码器均请求 30 fps，实际采集帧率取决于板端处理和写盘速度。
 
+1.0.1 绕开旧版绿屏所对应的编码器行距问题。硬件编码时在原画面右侧补 32 像素以满足 64 字节行距对齐，再由 H.265 裁剪参数将可见范围设为 **1440×1080**。已有绿屏录像中的画面数据已经损坏，需要重新录制。 [绿屏分析与修复报告](docs/green-video-report.md)
+
 ## 部署到板上
 
 板端使用已安装 MaixPy v4 的 MaixCAM 系统，接好支持该分辨率的相机模组和触屏，并退出正在使用相机的应用。电脑使用 Python 3 和 Sipeed 的 `maixtool`。在仓库根目录执行下列命令。[MaixPy 应用开发与安装](https://wiki.sipeed.com/maixpy/doc/en/basic/app.html)
@@ -26,14 +28,14 @@ python3 -m pip install maixtool
 maixtool release
 ```
 
-生成的安装包为 `dist/capture_v1.0.0.zip`。
+生成的安装包为 `dist/capture_v1.0.1.zip`。
 
 ### 同一局域网扫码安装
 
 保持电脑与设备在同一局域网，在 `board_capture/` 下运行以下命令。打开板端 **应用商店（App Store）**，扫描终端中的二维码，安装后回应用菜单启动 **图像采集**。[官方局域网安装说明](https://wiki.sipeed.com/maixpy/doc/en/basic/app.html#local-qr-code-installation-for-local-package)
 
 ```bash
-maixtool deploy --pkg dist/capture_v1.0.0.zip
+maixtool deploy --pkg dist/capture_v1.0.1.zip
 ```
 
 ### SSH 安装和导出
@@ -42,8 +44,8 @@ maixtool deploy --pkg dist/capture_v1.0.0.zip
 
 ```bash
 BOARD=192.168.1.50
-scp dist/capture_v1.0.0.zip "root@$BOARD:/root/"
-ssh "root@$BOARD" 'app_store_cli install /root/capture_v1.0.0.zip'
+scp dist/capture_v1.0.1.zip "root@$BOARD:/root/"
+ssh "root@$BOARD" 'app_store_cli install /root/capture_v1.0.1.zip'
 ```
 
 结束采集后，将文件下载到电脑的 `~/Downloads/maix-capture/`。
@@ -61,5 +63,7 @@ scp -r "root@$BOARD:/root/capture/." "$HOME/Downloads/maix-capture/"
 | `main.py` | 应用入口、设备生命周期和事件循环 |
 | `capture_media.py` | JPG 保存、H.265 编码与文件收尾 |
 | `capture_ui.py` | 预览布局、按钮命中和状态显示 |
+| `hevc_crop.py` | 设置 H.265 码流的可见宽度 |
 | [MaixPy API 与实现说明](docs/maixpy-api.md) | API 用法、源码依据和帧处理路径 |
+| [绿屏分析与修复报告](docs/green-video-report.md) | 样片证据、编码器行距问题和修法 |
 | [验证记录与板端验收](docs/validation.md) | 已完成的检查和实机验收步骤 |

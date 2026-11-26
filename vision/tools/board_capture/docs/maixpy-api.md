@@ -8,7 +8,9 @@
 
 ## 录像
 
-MaixCAM 的 `video.Encoder` 要求输入 `image.Format.FMT_YVU420SP`，即 NV21。录像时通过 `Image.to_format(FMT_YVU420SP)` 生成同尺寸编码帧。底层先把 BGR 转为 YV12，再把 V、U 平面交错成 NV21。每段录像创建一个 `Encoder`，显式传入 `VIDEO_H265_CBR` 和 `block=True`，并把 `encode(nv21)` 返回的有效 `Frame.to_bytes()` 顺序写入文件。[MaixPy 录像指南](https://wiki.sipeed.com/maixpy/doc/en/video/record.html) · [Encoder 和 Frame API](https://wiki.sipeed.com/maixpy/api/maix/video.html#encoder) · [格式转换源码](https://github.com/sipeed/MaixCDK/blob/main/components/vision/src/maix_image.cpp) · [MaixCAM 编码实现](https://github.com/sipeed/MaixCDK/blob/main/components/vision/port/maixcam/maix_video_mmf.cpp)
+MaixCAM 的 `video.Encoder` 要求输入 `image.Format.FMT_YVU420SP`，即 NV21。录像开始后分配 1472×1080 的 BGR888 编码画布，每帧把 1440×1080 原图复制到左边，右侧保留 32 像素黑色填充。`Image.to_format(FMT_YVU420SP)` 将整张画布转成 NV21，底层先转 YV12，再交错 V、U 平面。每段录像创建一个 1472×1080 的 `Encoder`，显式传入 `VIDEO_H265_CBR` 和 `block=True`。[MaixPy 录像指南](https://wiki.sipeed.com/maixpy/doc/en/video/record.html) · [Encoder 和 Frame API](https://wiki.sipeed.com/maixpy/api/maix/video.html#encoder) · [格式转换源码](https://github.com/sipeed/MaixCDK/blob/main/components/vision/src/maix_image.cpp)
+
+`hevc_crop.py` 在 `encode(nv21)` 返回的 Annex B 字节中找到 SPS，将右裁剪增加 32 像素，保留原有裁剪和其他 NAL 单元。播放器输出 1440×1080，原画面无缩放。应用逐包写入码流，并在发布文件前检查是否见到了 SPS。板端只需要 MaixPy 和 Python 标准库。[H.265 裁剪规范](https://www.itu.int/rec/dologin_pub.asp?id=T-REC-H.265-202407-S%21%21PDF-E&lang=e&type=items) · [绿屏分析与修复报告](green-video-report.md)
 
 `Encoder` 的无路径模式直接输出编码字节。每段写入 `/root/capture/` 内的隐藏临时文件，`Stop REC` 或正常退出时销毁编码器、关闭文件并发布 `.h265` 文件。编码或写入报错时清理该段临时文件，界面回到可开始录像的状态。重启录像会创建新的硬件编码通道。系统掉电或进程被强制终止时，未收尾的临时文件可能留在目录中。[Encoder 构造与析构源码](https://github.com/sipeed/MaixCDK/blob/main/components/vision/port/maixcam/maix_video_mmf.cpp)
 
