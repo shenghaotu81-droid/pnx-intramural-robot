@@ -5,7 +5,7 @@
 ## 实施结果
 
 - **读取与所有权。** `Camera::read()` 在入口释放上一帧，调用一次 SDK 读取，并立即用局部 `unique_ptr` 接管返回值。检查格式、尺寸和像素地址后，Mat 直接借用紧密排列的 BGR 数据，Camera 持有当前 Image。失败路径自动释放已取得的 Image，统一抛出带原因的 `std::runtime_error`。只有交付成功才递增帧号。[实现](../src/camera.cpp#L72)
-- **启动与重建。** 构造、显式打开和预热的异常均保留阶段名称和原始原因，打开的非成功返回码也转换为 `std::runtime_error`。app 决定再次读取、销毁重建或结束采集。析构先释放当前 Image，再析构 SDK Camera。新实例从帧号 0 开始。[构造与成员声明](../src/camera.cpp#L38)
+- **启动与重建。** 构造、显式打开和预热的异常均保留阶段名称和原始原因，打开的非成功返回码也转换为 `std::runtime_error`。app 决定再次读取或结束采集。析构先释放当前 Image，再析构 SDK Camera。新实例从帧号 0 开始。[构造与成员声明](../src/camera.cpp#L38)
 - **调用方契约。** `Frame` 和 `Camera` 的公开签名保留。头文件及相机 README 明确写入借用期和失败语义：下一次读取开始或相机析构即失效，Mat 浅拷贝也受此限制。跨越借用期需提前 `clone()`。本次使用现有 SDK、OpenCV core 与 C++17 标准库。[公共头文件](../include/camera/camera.hpp#L15) · [相机 README](../README.md#行为)
 
 ## 宿主验证
@@ -31,7 +31,7 @@ g++ -std=c++17 -fsyntax-only -Ivision/camera/include \
 
 默认配置为 1440×1080。板上仍需读取预热后的首个正式帧，并核对实际驱动宽度、源 stride、画面逐行排列和红蓝通道。SDK 的 BGR 转换用 `u32Width * 3` 定位源行。无参读取消除了外部缓冲区容量冲突，实际源行距仍由驱动决定。[SDK BGR 转换](https://github.com/Sipeed/MaixCDK/blob/30f4b8b7e3f66ded9cfa64fb081b46e30bc27248/components/vision/port/maixcam/maix_camera_mmf.cpp#L1076)
 
-若 SDK 在取出驱动帧后分配像素失败，单缓冲下后续读取可能持续超时。宿主测试验证了封装把控制权交回 app，以及封装资源可以析构重建。真实设备此时能否通过重建恢复采集尚未实测。
+若 SDK 在取出驱动帧后分配像素失败，单缓冲下后续读取可能持续超时。源码确认 vpss_destroy_grp 不回收未归还的 VB 块（只做校验、清 SBM、拆输入任务队列、复位旋转/LDC、释放 LDC mesh ion buffer 和组上下文，不调 vb_release_block、不碰 CHN_TYPE_OUT 队列），重建大概率不能恢复采集。app 已决定不做重建（2026-11-26），连续失败超 N 次即退出。板端待确认改为：单次漏帧后重试能否继续读帧。
 
 <details>
 <summary>实施前的方案审核记录（项目基线 fe4ba66）</summary>
