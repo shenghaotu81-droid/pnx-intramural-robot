@@ -16,21 +16,21 @@ struct CurrentState {
     double car_angular_velocity;          // 车子绕 z 轴的角速度 ω，rad/s
     std::optional<Vec2> target_position;  // 目标实测位置，车体系，m
     std::optional<Vec2> target_velocity;  // 目标表观速度，车体系，m/s
-    std::optional<double> target_heading; // 目标实测朝向，rad
+    std::optional<double> target_heading; // 目标实测朝向，车体系，正对为 0，俯视逆时针为正，rad
 };
 ```
 
 - `car_velocity` / `car_angular_velocity`：车子自己的运动。来源：C 板速度回馈 0x0015，或上一次发出的速度指令值。
 - `target_position`：目标在车体系的实测位置（MARK/TAG 从 pipeline 来）。没有目标时（转着扫）留空。
 - `target_velocity`：目标在车体系的表观速度，即目标位置在车体系里的变化率，G4 量出来的值。**注意：这是表观速度，不是目标相对地面的速度。** G5 内部用它 + ω × p + 车速算出目标相对地面的速度做前馈。MARK 有；TAG 没有（TAG 静止且无速度量测）；转着扫没有。
-- `target_heading`：目标在车体系的实测朝向（yaw，G2 的名义值，未处理）。没有目标时留空。
+- `target_heading` 表示目标相对车头的实测 yaw。adapter 用安装外参将 G2 名义位姿的板面法线（模型 `+z`，朝板背）转到车体系，再取水平投影的方位角。正对为 0，法线偏向车左为正，缺少姿态观测时留空。[adapter 计算说明](../adapter/README.md#做法)
 
 ### 期望状态
 
 ```cpp
 struct DesiredState {
     std::optional<Vec2> target_position;    // 目标期望位置，车体系，m
-    std::optional<double> target_heading;   // 目标期望朝向，rad
+    std::optional<double> target_heading;   // 目标期望朝向，与实测朝向同一车体系和符号，rad
     std::optional<double> angular_velocity; // 期望角速度，rad/s
 };
 ```

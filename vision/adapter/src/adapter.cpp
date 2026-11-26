@@ -33,13 +33,13 @@ namespace adapter
             output.current.target_velocity = controller::Vec2{v_body[0], v_body[1]};
         }
 
-        // yaw：rvec → Rodrigues → R_cam，取 MARK 的 +x 轴在水平面（x-z 平面）的角度。
-        // 相机系 y 是竖直轴，yaw 是绕 y 的转动，所以用 R(0,2)/R(0,0)，不用 R(1,0)。
+        // 第三列是指向板背的模型 +z 轴。取其在车体水平面的方位角，正对为 0，俯视逆时针为正。
         if (input.rvec.has_value())
         {
             cv::Matx33d r_cam;
             cv::Rodrigues(input.rvec.value(), r_cam);
-            output.current.target_heading = std::atan2(r_cam(0, 2), r_cam(0, 0));
+            const cv::Matx33d r_body = config_.rotation * r_cam;
+            output.current.target_heading = std::atan2(r_body(1, 2), r_body(0, 2));
         }
 
         // DesiredState 按 mode + target 拼，期望朝向都从配置取，不写死

@@ -87,7 +87,8 @@ private:
 
 ## 做法
 
-- 位置：`p_body = R · p_camera + t`，取 x、y。速度：`v_body = R · v_camera`（只转不平移），取 x、y。yaw：rvec 经 Rodrigues 得 R_cam，取 yaw = atan2(R_cam(0,2), R_cam(0,0))。相机系 y 是竖直轴，yaw 是绕 y 的转动，所以用 R(0,2)/R(0,0)。
+- 位置取 `p_body = R · p_camera + t` 的 x、y。速度取 `v_body = R · v_camera` 的 x、y。
+- yaw 使用 MARK 和 TAG 指向板背的模型 `+z` 轴。`R_cam = Rodrigues(rvec)` 将模型轴转到相机系，`R_body = config_.rotation * R_cam` 再转到车体系。第三列是板面法线，其水平投影给出 `yaw = atan2(R_body(1,2), R_body(0,2))`，单位 rad。车体 `+x` 向前、`+y` 向左、`+z` 向上，正对时为 0，俯视逆时针为正。该定义适用于任意相机安装旋转，前提是法线在车体水平面上的投影非零。
 - 缺数据原样传 nullopt：位置/速度/rvec 丢了就是 nullopt，CurrentState 里对应字段也是 nullopt，不编值。G5 按 nullopt 处理，G3 按 P + 量测新鲜度判“真丢了”。
 - DesiredState 按 mode + target 拼：
   - FOLLOW：target 是 Mark 取 `follow_target_position`，是 Tag 取 `approach_target_position`；期望朝向取 follow_target_heading。
@@ -103,4 +104,4 @@ private:
 
 ## 状态
 
-实现已完成，独立 Release 构建下 10 组单元测试全部通过。详见[测试报告](docs/test-report.md)。
+独立 Release 构建与 adapter 的两项 CTest 通过。`adapter_test` 覆盖 11 组几何变换与模式用例。[单元测试报告](docs/test-report.md) · [yaw 修正与仿真核验](docs/yaw-fix-report.md)

@@ -6,6 +6,8 @@
 #include <limits>
 #include <optional>
 
+#include <opencv2/calib3d.hpp>
+
 namespace
 {
     using adapter::Adapter;
@@ -193,8 +195,8 @@ namespace
             double expected;
         } cases[] = {
             {"zero rotation", {0, 0, 0}, 0.0},
-            {"positive yaw", {0, 0.5236, 0}, 0.5236},
-            {"negative yaw", {0, -0.7854, 0}, -0.7854},
+            {"positive camera y", {0, 0.5236, 0}, -0.5236},
+            {"negative camera y", {0, -0.7854, 0}, 0.7854},
             {"pure pitch", {0.3, 0, 0}, 0.0},
             {"pure roll", {0, 0, 0.3}, 0.0},
         };
@@ -274,7 +276,32 @@ namespace
         input.rvec = cv::Vec3d(0, 0.35, 0);
         check_measurements(checks, "mixed axes with pitch and offset",
                            pitched_with_offset.adapt(input).current,
-                           Vec2{1.5320508075688772, -0.35}, Vec2{-0.7464101615137755, 0.2}, 0.35);
+                           Vec2{1.5320508075688772, -0.35}, Vec2{-0.7464101615137755, 0.2},
+                           -0.39890119564063126);
+    }
+
+    void test_fixed_target_heading(Checks &checks, const AdapterConfig &config)
+    {
+        // 车的世界 yaw 为零时，正对目标的模型轴与默认安装的相机轴重合。
+        const cv::Matx33d target_to_world = config.rotation;
+        cv::Matx33d mount_offset;
+        cv::Rodrigues(cv::Vec3d(0.17, -0.23, 0.31), mount_offset);
+        auto mounted_config = config;
+        mounted_config.rotation = mount_offset * config.rotation;
+        const Adapter adapter(mounted_config);
+        auto input = make_input();
+        input.target = Target::Tag;
+        for (double car_yaw : {0.0, 0.30, -0.15})
+        {
+            cv::Matx33d body_to_world;
+            cv::Rodrigues(cv::Vec3d(0, 0, car_yaw), body_to_world);
+            const cv::Matx33d camera_to_world = body_to_world * mounted_config.rotation;
+            cv::Vec3d rvec;
+            cv::Rodrigues(camera_to_world.t() * target_to_world, rvec);
+            input.rvec = rvec;
+            checks.expect("fixed world heading", "target_heading", adapter.adapt(input).current.target_heading,
+                          std::optional{-car_yaw});
+        }
     }
 
     void test_yaw_boundary(Checks &checks, const AdapterConfig &config)
@@ -286,10 +313,10 @@ namespace
             double camera_y;
             double expected;
         } cases[] = {
-            {"inside positive pi", kPi - delta, kPi - delta},
-            {"inside negative pi", -kPi + delta, -kPi + delta},
-            {"past positive pi", kPi + delta, -kPi + delta},
-            {"past negative pi", -kPi - delta, kPi - delta},
+            {"inside positive pi", kPi - delta, -kPi + delta},
+            {"inside negative pi", -kPi + delta, kPi - delta},
+            {"past positive pi", kPi + delta, kPi - delta},
+            {"past negative pi", -kPi - delta, -kPi + delta},
         };
         const Adapter adapter(config);
         auto input = make_input();
@@ -311,7 +338,7 @@ namespace
         auto input = make_input();
         input.position_camera = cv::Vec3d(0.4, -0.2, 1.2);
         input.velocity_camera = cv::Vec3d(-0.2, 0.25, 0.6);
-        // 绕 (1, 1, 0) 方向转 90°。矩阵的 R(0,0)=1/2，R(0,2)=1/sqrt(2)。
+        // 绕 (1, 1, 0) 转 90°，模型 +z 变为相机系 (1/√2, -1/√2, 0)，水平投影朝车右。
         const double rotation_component = kPi / (2.0 * std::sqrt(2.0));
         input.rvec = cv::Vec3d(rotation_component, rotation_component, 0);
         input.car_velocity = {0.3, -0.1};
@@ -319,7 +346,7 @@ namespace
 
         const Vec2 position{1.2, -0.4};
         const Vec2 velocity{0.6, 0.2};
-        constexpr double heading = 0.9553166181245093;
+        constexpr double heading = -kPi / 2.0;
         const DesiredState desired{Vec2{0.65, -0.12}, -0.3, {}};
 
         const auto full = adapter.adapt(input);
@@ -399,6 +426,7 @@ int main()
         {"Desired state by mode", test_desired_state},
         {"Car motion passthrough", test_car_motion},
         {"Pitched camera", test_pitched_camera},
+        {"Fixed target with rotated camera", test_fixed_target_heading},
         {"Yaw near pi", test_yaw_boundary},
         {"Combined and missing measurements", test_measurements_together},
         {"Modes independent of target", test_modes_independent_of_target},
