@@ -4,7 +4,7 @@
 
 display 库是一个纯画画的渲染器：把 app 给的数据画到帧上，推到屏幕。不做任何计算（不检测、不跟踪、不控制），不做任何判断（不决定画什么、不决定什么时候画）。调了就画，不调就不画。
 
-- 比赛模式黑屏不是 display 的事：app 不调 display，屏幕自然黑。
+- app 停止调用 `show()` 后就停止刷新。黑屏或关闭背光需要单独处理。
 - 节流不是 display 的事：app 每 N 帧调一次 display，就是节流。
 
 ## 输入
@@ -44,13 +44,13 @@ namespace display
     class Display
     {
       public:
-        // 打开 MaixCDK 屏幕（默认屏，BGR888）。打开失败抛 std::runtime_error。
+        // 以 SDK 默认格式 RGB888 打开默认屏。打开失败抛 std::runtime_error。
         Display();
         ~Display();
         Display(const Display &) = delete;
         Display &operator=(const Display &) = delete;
 
-        // 画一帧并推屏。MaixCDK 推屏失败抛 std::runtime_error。
+        // 画一帧并推屏。SDK show() 返回非 ERR_NONE 时抛 std::runtime_error。
         void show(const DisplayInput &input);
 
       private:
@@ -58,7 +58,7 @@ namespace display
         std::unique_ptr<Impl> impl_;
     };
 
-    // 纯 OpenCV 绘制：输入一帧数据，输出画好的屏幕图（640x480）。
+    // 纯 OpenCV 绘制，返回 screen_size 大小的 BGR 图像。
     // 不碰 MaixCDK，可在笔记本上编和测。Display::show() 内部调它。
     cv::Mat render(const DisplayInput &input, const cv::Size &screen_size);
 
@@ -71,12 +71,14 @@ namespace display
 
 `render()` 的步骤：
 
-1. 把 `frame` 按等比缩到屏幕尺寸（1440x1080 → 640x480，倍数 0.444，两边都是 4:3，无变形、无黑边）。
-2. 把叠加层的点（`target_quad` 四个角点、`track_pixel`、`velocity_pixel`）按同一倍数 0.444 缩到屏幕坐标。
-3. 在缩好的图上画：绿框、橙点、橙箭头、四角文字。
-4. 返回 640x480 的 BGR Mat。
+1. 将整帧缩放到 `screen_size`。横向比例为 `sx = screen_size.width / frame.cols`，纵向比例为 `sy = screen_size.height / frame.rows`，两者都按浮点数计算。1440×1080 到 640×480 时两者都为 4/9。宽高比不同时，画面会拉伸铺满。
+2. 把 `target_quad` 的四个角点、`track_pixel` 和 `velocity_pixel` 从帧坐标映射到屏幕坐标，横坐标乘 `sx`，纵坐标乘 `sy`，再分别取整。
+3. 在缩放得到的新图上画绿框、橙点、橙箭头和四角文字。
+4. 返回带叠加层的 BGR Mat，保留输入帧的原始像素。
 
-`show()` 把 `render()` 返回的 Mat 包成 `maix::image::Image`（FMT_BGR888，不做颜色转换），调 MaixCDK `Display::show()` 推屏。
+`show()` 从已打开的显示设备读取宽高，交给 `render()`。随后用 `FMT_BGR888` 和 `copy=false` 将结果包装成借用 Mat 像素的 `maix::image::Image`。MaixCDK 在 MaixCAM 上把 BGR888 转成临时 RGB888 图像，再交给显示后端。
+
+封装将 SDK `show()` 返回的非 `ERR_NONE` 错误码转成 `std::runtime_error`。在核对的 SDK 版本中，即使底层推帧失败，SDK 也可能返回 `ERR_NONE`。图像分配或转换直接抛出的异常会传给调用方。[版本与源码核对](docs/display-review.md)
 
 **可选字段缺失时**：对应元素直接不画（无四边形就不画框，无跟踪点就不画点和箭头，无实际速度就不画右下角那块），不报错。
 
@@ -95,10 +97,10 @@ namespace display
 │                                      │
 │        绿框 + 橙点 + 橙箭头           │
 │                                      │
-│ p 0.50 0.20                 act      │
-│ v 0.30 0.10                 0.40     │
-│                             0.10     │
-│                             0.05     │
+│                             act      │
+│                             0.40     │
+│ p 0.50 0.20                 0.10     │
+│ v 0.30 0.10                 0.05     │
 └──────────────────────────────────────┘
 ```
 
@@ -131,7 +133,7 @@ namespace display
 | 跟踪点 | 橙 `{0,180,255}`，圆半径 5，thickness 2 |
 | 速度箭头 | 橙 `{0,180,255}`，thickness 2 |
 
-字号 1.2 是保守值：最长行（`frame 123 30Hz`，14 字符）约 250px（640 宽放得下），右上 4 行块约占屏高 29%，字高约 30px（约 2.3mm，40cm 处可读）。上板后实测可读性再确认。
+字号 1.2 下，示例行 `frame 123 30Hz` 约 250px，右上 4 行块约占 480px 屏高的 29%，字高约 30px。实际行宽取决于内容，上板后实测可读性再确认。
 
 不做半透明背景：叠加层是细线 + 角落文字，不挡图；真有遮挡问题再加。
 
