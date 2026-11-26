@@ -44,7 +44,7 @@ namespace display
     class Display
     {
     public:
-        // 打开 MaixCDK 屏幕（默认屏，BGR888）。打开失败抛 std::runtime_error。
+        // 以 SDK 默认格式 RGB888 打开默认屏。打开失败抛 std::runtime_error。
         Display();
         // 析构函数，声明在头文件、定义在 .cpp；pimpl 的原因：析构时要 delete Impl，必须在 Impl 完整定义的地方
         ~Display();
@@ -52,7 +52,7 @@ namespace display
         Display(const Display &) = delete;
         Display &operator=(const Display &) = delete;
 
-        // 画一帧并推屏。MaixCDK 推屏失败抛 std::runtime_error。
+        // 画一帧并推屏。SDK show() 返回非 ERR_NONE 时抛 std::runtime_error。
         void show(const DisplayInput &input);
 
     private:

@@ -80,7 +80,7 @@ namespace display
 
 封装将 SDK `show()` 返回的非 `ERR_NONE` 错误码转成 `std::runtime_error`。在核对的 SDK 版本中，即使底层推帧失败，SDK 也可能返回 `ERR_NONE`。图像分配或转换直接抛出的异常会传给调用方。[版本与源码核对](docs/display-review.md)
 
-**可选字段缺失时**：对应元素直接不画（无四边形就不画框，无跟踪点就不画点和箭头，无实际速度就不画右下角那块），不报错。
+四边形和跟踪点各自独立绘制。箭头需要跟踪点和端点同时存在。缺跟踪状态、目标位置或目标速度时，文字的对应行留空，其余行保持原位。缺实际速度时，右下整块留空。
 
 **app 侧的责任**：`track_pixel` 和 `velocity_pixel` 由 app 算好传进来（`cv::projectPoints`，K/dist 取自 `pipeline.pose_config()`，旋转和平移都是单位量——位置已经在相机系）。`loop_hz` 由 app 算好传进来（主循环迭代间隔，平滑后）。display 不做投影，不算频率。
 
@@ -139,4 +139,4 @@ namespace display
 
 ## 构建
 
-只编给板子用：笔记本上交叉编译（`maixcdk build`），出板子用的 RISC-V 可执行文件，检查就是交叉编译能不能通过。不编 x86 给笔记本跑的那份。MaixCDK 的调用只出现在实现文件里，app 和其他库不 include MaixCDK 头文件。`render()` 是纯 OpenCV，可在笔记本上编和测（见 tests）。
+完整的 `display` 库随板端工程交叉编译（`maixcdk build`）。MaixCDK 调用位于实现文件中。笔记本可单独构建 `display_render_test`，验证纯 OpenCV 的 `render()`。[测试说明与运行命令](tests/README.md)
