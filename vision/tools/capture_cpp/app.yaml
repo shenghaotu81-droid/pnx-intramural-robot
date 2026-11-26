@@ -1,0 +1,9 @@
+id: capture_cpp
+name: Capture C++
+name[zh]: 高速图像采集
+version: '1.0.0'
+author: PNX Intramural Robot
+desc: Capture 1440x1080 JPEG photos and HEVC with frame timestamps.
+desc[zh]: 采集 1440×1080 的照片和 H.265 视频，记录逐帧时间。
+files:
+  app.yaml: app.yaml
