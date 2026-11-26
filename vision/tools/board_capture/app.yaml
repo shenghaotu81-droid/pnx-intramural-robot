@@ -1,0 +1,11 @@
+id: capture
+name: Capture
+name[zh]: 图像采集
+version: '1.0.0'
+author: PNX Intramural Robot
+desc: Capture 1440x1080 JPEG photos and H.265 video on MaixCAM.
+desc[zh]: 在 MaixCAM 上采集 1440×1080 的 JPEG 照片和 H.265 视频。
+files:
+  - main.py
+  - capture_media.py
+  - capture_ui.py
