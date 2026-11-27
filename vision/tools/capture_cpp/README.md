@@ -1,6 +1,6 @@
 # 高速板端采集
 
-`capture_cpp` 是 MaixCAM／MaixCAM-Pro 的 MaixCDK C++ 应用，用于校内赛的动态 q 标定。相机固定请求 **1440×1080、30 fps、NV21、默认单缓冲**，启动后预热 10 帧。JPG 和 H.265 的可见尺寸都是 1440×1080。录像帧率以录制界面和随视频保存的逐帧时间为准。1.2.0 单缓冲实测 **25.03 fps**，P95 帧间隔 47.475 ms。1.3.0 改善录像起点、短时写盘阻塞和预览绘制，实际 fps 待板测。 [实拍分析与收尾判据](docs/final-round.md)
+`capture_cpp` 是 MaixCAM／MaixCAM-Pro 的 MaixCDK C++ 应用，用于校内赛的动态 q 标定。相机固定请求 **1440×1080、30 fps、NV21、默认单缓冲**，启动后预热 10 帧。JPG 和 H.265 的可见尺寸都是 1440×1080。录像帧率以录制界面和随视频保存的逐帧时间为准。**v1.3.0 已完成板端验收。** 单缓冲手持实拍 62.204 秒、1,563 帧，实际 **25.11 fps**，P95 帧间隔 47.672 ms，最长 51.490 ms。 [板测对照与闭环报告](docs/board-acceptance-v1.3.0.md)
 
 ## 使用
 
@@ -75,7 +75,7 @@ cd /maixapp/apps/capture_cpp
 CAPTURE_CPP_CAMERA_BUFFERS=2 ./capture_cpp
 ```
 
-两组尽量保持相同光照、运动、存储介质和录像时长。每份 TSV 都包含 `camera_buffers`、原生 VPSS 取帧耗时 `pop_us` 和按需映射耗时 `pixel_map_us`。用真实 fps、帧间隔及首帧软件与硬件的时间差来比较两组。1.3.0 还在首行记录 ISP 配置帧率和曝光时间，供区分相机配置与实际交付节奏。 [实拍分析与收尾判据](docs/final-round.md)
+两组尽量保持相同光照、运动、存储介质和录像时长。每份 TSV 都包含 `camera_buffers`、原生 VPSS 取帧耗时 `pop_us` 和按需映射耗时 `pixel_map_us`。用真实 fps、帧间隔及首帧软件与硬件的时间差来比较两组。1.3.0 还在首行记录 ISP 配置帧率和曝光时间，供区分相机配置与实际交付节奏。 [单缓冲板测结果](docs/board-acceptance-v1.3.0.md)
 
 ## 文档
 

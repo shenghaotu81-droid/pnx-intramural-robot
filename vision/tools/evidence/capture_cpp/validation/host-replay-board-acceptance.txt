@@ -1,0 +1,8 @@
+v1.0.0, encoder width 1440, 1 startup buffers discarded, 550 frames verified, peak FIFO 16/16
+v1.0.0, encoder width 1472, 2 startup buffers discarded, 550 frames verified, peak FIFO 16/16
+v1.1.0, encoder width 1440, 1 startup buffers discarded, 1238 frames verified, peak FIFO 16/16
+v1.1.0, encoder width 1472, 2 startup buffers discarded, 1238 frames verified, peak FIFO 16/16
+v1.2.0, encoder width 1440, 1 startup buffers discarded, 1294 frames verified, peak FIFO 16/16
+v1.2.0, encoder width 1472, 2 startup buffers discarded, 1294 frames verified, peak FIFO 16/16
+v1.3.0, encoder width 1440, 1 startup buffers discarded, 1563 frames verified, peak FIFO 16/16
+v1.3.0, encoder width 1472, 2 startup buffers discarded, 1563 frames verified, peak FIFO 16/16
