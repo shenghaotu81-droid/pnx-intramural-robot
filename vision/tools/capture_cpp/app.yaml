@@ -1,7 +1,7 @@
 id: capture_cpp
 name: Capture C++
 name[zh]: 高速图像采集
-version: '1.1.0'
+version: '1.2.0'
 author: PNX Intramural Robot
 desc: Capture 1440x1080 JPEG and HEVC with frame timestamps and stage timings.
 desc[zh]: 采集 1440×1080 照片与 H.265 视频，分别记录标定时间戳和分段耗时。

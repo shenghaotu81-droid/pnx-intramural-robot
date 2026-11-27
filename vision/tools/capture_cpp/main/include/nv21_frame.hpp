@@ -1,26 +1,35 @@
 #pragma once
 
 #include "maix_pipeline.hpp"
-#include <cstdint>
+#include <linux/cvi_comm_video.h>
 #include <opencv2/core.hpp>
 
 namespace capture {
 
-// The caller keeps the MaixCDK frame alive through encode and all pixel access.
+// Owns one VPSS reference. Only CPU pixel consumers request a cached mapping.
 class Nv21Frame {
 public:
-    explicit Nv21Frame(maix::pipeline::Frame &frame);
+    explicit Nv21Frame(int channel) : channel_(channel) {}
+    ~Nv21Frame();
+    Nv21Frame(const Nv21Frame &) = delete;
+    Nv21Frame &operator=(const Nv21Frame &) = delete;
 
-    int encoder_width() const { return encoder_width_; }
-    std::uint64_t driver_pts() const { return driver_pts_; }
-    cv::Mat preview_rgb(cv::Size size) const;
-    cv::Mat copy_pixels() const;
+    int acquire(int timeout_ms);
+    void validate();
+    void map_pixels();
+    void release();
+    maix::pipeline::Frame encoder_frame();
+
+    const VIDEO_FRAME_S &info() const { return native_.stVFrame; }
+    cv::Mat sample(cv::Size size) const;
 
 private:
-    cv::Mat y_;
-    cv::Mat vu_;
-    int encoder_width_;
-    std::uint64_t driver_pts_;
+    VIDEO_FRAME_INFO_S native_{};
+    int channel_;
+    bool acquired_ = false;
+    std::uint32_t length_ = 0;
+    std::size_t vu_offset_ = 0;
+    std::uint8_t *base_ = nullptr;
 };
 
 }  // namespace capture

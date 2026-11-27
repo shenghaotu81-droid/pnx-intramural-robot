@@ -1,0 +1,35 @@
+
+../MaixCDK/components/3rd_party/sophgo-middleware/sophgo-middleware/v2/lib/libsys.so:     file format elf64-littleriscv
+
+
+Disassembly of section .plt:
+
+Disassembly of section .text:
+
+000000000000681e <CVI_SYS_MmapCache>:
+    681e:	1101                	addi	sp,sp,-32
+    6820:	ec06                	sd	ra,24(sp)
+    6822:	e822                	sd	s0,16(sp)
+    6824:	e426                	sd	s1,8(sp)
+    6826:	e04a                	sd	s2,0(sp)
+    6828:	84aa                	mv	s1,a0
+    682a:	892e                	mv	s2,a1
+    682c:	c24fe0ef          	jal	ra,4c50 <CVI_SYS_DevMem_Open@plt>
+    6830:	00008517          	auipc	a0,0x8
+    6834:	7e052503          	lw	a0,2016(a0) # f010 <vb_ioctl_unit_test+0x42d6>
+    6838:	7c09360b          	extu	a2,s2,31,0
+    683c:	85a6                	mv	a1,s1
+    683e:	b42fe0ef          	jal	ra,4b80 <devm_map@plt>
+    6842:	842a                	mv	s0,a0
+    6844:	c511                	beqz	a0,6850 <CVI_SYS_MmapCache+0x32>
+    6846:	85aa                	mv	a1,a0
+    6848:	864a                	mv	a2,s2
+    684a:	8526                	mv	a0,s1
+    684c:	be4fe0ef          	jal	ra,4c30 <CVI_SYS_IonInvalidateCache@plt>
+    6850:	60e2                	ld	ra,24(sp)
+    6852:	8522                	mv	a0,s0
+    6854:	6442                	ld	s0,16(sp)
+    6856:	64a2                	ld	s1,8(sp)
+    6858:	6902                	ld	s2,0(sp)
+    685a:	6105                	addi	sp,sp,32
+    685c:	8082                	ret

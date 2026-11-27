@@ -1,0 +1,567 @@
+--- None 0x1a67c 0x1a84e
+1a67c li	a5, 13
+1a67e beq	a2, a5, 14 -> 1a68c
+1a682 addiw	a5, a2, -18
+1a686 li	a3, 1
+1a688 bltu	a3, a5, 84 -> 1a6dc
+1a68c addiw	a1, a1, 1
+1a68e andi	a1, a1, -2
+1a690 li	a5, 13
+1a692 sext.w	a1, a1
+1a694 bne	a2, a5, 72 -> 1a6dc
+1a698 slliw	a0, a0, 2
+1a69c srliw	a0, a0, 3
+1a6a0 addiw	a0, a0, 63
+1a6a4 andi	a0, a0, -64
+1a6a8 slliw	a6, a0, 1
+1a6ac mulw	a2, a0, a1
+1a6b0 mulw	t1, a1, a6
+1a6b4 sext.w	a3, a0
+1a6b8 srliw	a5, a2, 1
+1a6bc addw	a1, a2, t1
+1a6c0 li	a2, 3
+1a6c2 sb	a2, 26(a4)
+1a6c6 th.swd	t1, a5, (a4), 2, 3
+1a6ca li	a5, 64
+1a6ce th.swd	a1, a6, (a4), 0, 3
+1a6d2 sw	a3, 8(a4)
+1a6d4 sw	a1, 12(a4)
+1a6d6 sh	a5, 24(a4)
+1a6da ret
+1a6dc slliw	a5, a0, 3
+1a6e0 srliw	a5, a5, 3
+1a6e4 addiw	a7, a5, 63
+1a6e8 andi	a7, a7, -64
+1a6ec mulw	t1, a7, a1
+1a6f0 li	a3, 12
+1a6f2 sext.w	a6, a7
+1a6f6 mv	a7, t1
+1a6f8 bne	a2, a3, 38 -> 1a71e
+1a6fc slliw	a5, a0, 2
+1a700 srliw	a5, a5, 3
+1a704 addiw	a5, a5, 63
+1a708 andi	a5, a5, -64
+1a70c sext.w	a3, a5
+1a710 mulw	a5, a5, a1
+1a714 slliw	a0, a5, 1
+1a718 addw	a1, a0, t1
+1a71c j	-92 -> 1a6c0
+1a71e li	a3, 17
+1a720 bltu	a3, a2, 62 -> 1a75e
+1a724 lui	a3, 36
+1a728 addi	a3, a3, 12
+1a72a srl	a3, a3, a2
+1a72e andi	a3, a3, 1
+1a730 beqz	a3, 20 -> 1a744
+1a732 slliw	a1, t1, 1
+1a736 addw	a1, a1, t1
+1a73a li	a5, 3
+1a73c sb	a5, 26(a4)
+1a740 mv	a5, t1
+1a742 j	52 -> 1a776
+1a744 li	a3, 9
+1a746 bne	a2, a3, 18 -> 1a758
+1a74a li	a5, 1
+1a74c sb	a5, 26(a4)
+1a750 mv	a1, t1
+1a752 li	a5, 0
+1a754 li	a3, 0
+1a756 j	-144 -> 1a6c6
+1a758 li	a3, 15
+1a75a beq	a2, a3, -16 -> 1a74a
+1a75e addiw	a3, a2, -18
+1a762 li	t3, 1
+1a764 bltu	t3, a3, 22 -> 1a77a
+1a768 srliw	a5, a7, 1
+1a76c li	a3, 2
+1a76e addw	a1, a7, a5
+1a772 sb	a3, 26(a4)
+1a776 mv	a3, a6
+1a778 j	-178 -> 1a6c6
+1a77a addiw	a3, a2, -20
+1a77e bltu	t3, a3, 12 -> 1a78a
+1a782 slliw	a1, a7, 1
+1a786 li	a5, 2
+1a788 j	-76 -> 1a73c
+1a78a addiw	a3, a2, -22
+1a78e li	a6, 3
+1a790 bltu	a6, a3, 26 -> 1a7aa
+1a794 slliw	a5, a5, 1
+1a798 addiw	a5, a5, 63
+1a79c andi	a5, a5, -64
+1a7a0 mulw	a1, a5, a1
+1a7a4 sext.w	a6, a5
+1a7a8 j	34 -> 1a7ca
+1a7aa addiw	a3, a2, -4
+1a7ae bltu	t3, a3, 36 -> 1a7d2
+1a7b2 slliw	a0, a0, 4
+1a7b6 srliw	a0, a0, 3
+1a7ba addiw	a0, a0, 63
+1a7be andi	a0, a0, -64
+1a7c2 mulw	a1, a0, a1
+1a7c6 sext.w	a6, a0
+1a7ca sb	t3, 26(a4)
+1a7ce mv	t1, a1
+1a7d0 j	-126 -> 1a752
+1a7d2 li	a3, 6
+1a7d4 bne	a2, a3, 14 -> 1a7e2
+1a7d8 slliw	a5, a0, 5
+1a7dc srliw	a5, a5, 3
+1a7e0 j	-72 -> 1a798
+1a7e2 li	a3, 3
+1a7e4 mulw	a5, a3, a5
+1a7e8 j	-80 -> 1a798
+1a7ea addi	sp, sp, -48
+1a7ec sd	ra, 40(sp)
+1a7ee mv	a4, sp
+1a7f0 sd	zero, 0(sp)
+1a7f2 addiw	a5, a1, 63
+1a7f6 mv	a6, a3
+1a7f8 andi	a5, a5, -64
+1a7fc sd	zero, 8(a4)
+1a800 sd	zero, 16(a4)
+1a804 sw	zero, 24(a4)
+1a808 li	a3, 96
+1a80c sext.w	a5, a5
+1a80e bne	a0, a3, 34 -> 1a830
+1a812 addiw	a1, a2, 63
+1a816 andi	a1, a1, -64
+1a81a mv	a0, a5
+1a81c sext.w	a1, a1
+1a81e li	a3, 64
+1a822 mv	a2, a6
+1a824 jal	-424 -> 1a67c
+1a828 ld	ra, 40(sp)
+1a82a lw	a0, 0(sp)
+1a82c addi	sp, sp, 48
+1a82e ret
+1a830 li	a3, 265
+1a834 beq	a0, a3, -34 -> 1a812
+1a838 li	a3, 26
+1a83a beq	a0, a3, 12 -> 1a846
+1a83e li	a3, 1002
+1a842 bne	a0, a3, -48 -> 1a812
+1a846 addiw	a1, a2, 15
+1a84a andi	a1, a1, -16
+1a84c j	-50 -> 1a81a
+--- _Z17mmf_enc_h265_initiii 0x1e058 0x1e08e
+1e058 auipc	a5, 193
+1e05c lbu	a5, -684(a5)
+1e060 andi	a5, a5, 1
+1e062 bnez	a5, 40 -> 1e08a
+1e064 auipc	a5, 194
+1e068 lbu	a5, -1652(a5)
+1e06c beqz	a5, 26 -> 1e086
+1e06e addi	sp, sp, -16
+1e070 auipc	a0, 155
+1e074 addi	a0, a0, 1848
+1e078 sd	ra, 8(sp)
+1e07a jal	-43962 -> 134c0 puts
+1e07e ld	ra, 8(sp)
+1e080 li	a0, -1
+1e082 addi	sp, sp, 16
+1e084 ret
+1e086 j	-12492 -> 1afba
+1e08a li	a0, 0
+1e08c ret
+--- _Z20mmf_add_venc_channeliP14mmf_venc_cfg_t 0x1f99e 0x1fe28
+1f99e addi	sp, sp, -1264
+1f9a2 sd	s2, 1232(sp)
+1f9a6 sd	ra, 1256(sp)
+1f9aa sd	s0, 1248(sp)
+1f9ae sd	s1, 1240(sp)
+1f9b2 sd	s3, 1224(sp)
+1f9b6 sd	s4, 1216(sp)
+1f9ba sd	s5, 1208(sp)
+1f9be li	a5, 3
+1f9c0 mv	s2, a0
+1f9c2 blt	a5, a0, 32 -> 1f9e2
+1f9c6 auipc	s3, 190
+1f9ca addi	s3, s3, 1490
+1f9ce li	a4, 480
+1f9d2 mv	a5, s3
+1f9d4 th.mula	a5, a0, a4
+1f9d8 addi	a5, a5, 2047
+1f9dc lbu	a5, 1980(a5)
+1f9e0 beqz	a5, 18 -> 1f9f2
+1f9e2 mv	a1, s2
+1f9e4 auipc	a0, 154
+1f9e8 addi	a0, a0, 204
+1f9ec jal	-51292 -> 13190 printf
+1f9f0 j	54 -> 1fa26
+1f9f2 lbu	s0, 0(a1)
+1f9f6 li	s4, 1
+1f9f8 mv	s1, a1
+1f9fa beq	s0, s4, 22 -> 1fa10
+1f9fe li	a5, 2
+1fa00 beq	s0, a5, 576 -> 1fc40
+1fa04 mv	a1, s0
+1fa06 auipc	a0, 154
+1fa0a addi	a0, a0, 194
+1fa0e j	-34 -> 1f9ec
+1fa10 auipc	a5, 192
+1fa14 lbu	a5, -32(a5)
+1fa18 beqz	a5, 18 -> 1fa2a
+1fa1a auipc	a0, 154
+1fa1e addi	a0, a0, -626
+1fa22 jal	-50530 -> 134c0 puts
+1fa26 li	s0, -1
+1fa28 j	96 -> 1fa88
+1fa2a li	a2, 96
+1fa2e li	a1, 0
+1fa30 addi	a0, sp, 88
+1fa32 jal	-49522 -> 138c0 memset
+1fa36 addi	a5, sp, 48
+1fa38 ld	a2, 4(s1)
+1fa3c li	a4, 265
+1fa40 sw	a4, 24(a5)
+1fa42 sd	a2, 76(sp)
+1fa46 lui	a2, 256
+1fa4a lw	a3, 4(s1)
+1fa4c lw	a4, 8(s1)
+1fa4e sw	a2, 36(a5)
+1fa50 sb	s0, 92(sp)
+1fa54 sw	a3, 48(a5)
+1fa56 sw	a4, 52(a5)
+1fa58 li	a4, 257
+1fa5c sh	a4, 105(sp)
+1fa60 lw	a3, 36(s1)
+1fa62 li	a4, 2
+1fa64 sw	a4, 124(a5)
+1fa66 beqz	a3, 70 -> 1faac
+1fa68 beq	a3, s0, 90 -> 1fac2
+1fa6c addi	a1, sp, 72
+1fa6e mv	a0, s2
+1fa70 jal	-46096 -> 14660 CVI_VENC_CreateChn
+1fa74 mv	s0, a0
+1fa76 beqz	a0, 80 -> 1fac6
+1fa78 mv	a2, s0
+1fa7a mv	a1, s2
+1fa7c auipc	a0, 152
+1fa80 addi	a0, a0, 1564
+1fa84 jal	-51444 -> 13190 printf
+1fa88 ld	ra, 1256(sp)
+1fa8c mv	a0, s0
+1fa8e ld	s0, 1248(sp)
+1fa92 ld	s1, 1240(sp)
+1fa96 ld	s2, 1232(sp)
+1fa9a ld	s3, 1224(sp)
+1fa9e ld	s4, 1216(sp)
+1faa2 ld	s5, 1208(sp)
+1faa6 addi	sp, sp, 1264
+1faaa ret
+1faac li	a3, 11
+1faae sw	a3, 88(a5)
+1fab0 lw	a3, 20(s1)
+1fab2 sw	a4, 96(a5)
+1fab4 sw	a3, 92(a5)
+1fab6 ld	a4, 24(s1)
+1fab8 sd	a4, 148(sp)
+1fabc lw	a4, 32(s1)
+1fabe sw	a4, 108(a5)
+1fac0 j	-84 -> 1fa6c
+1fac2 li	a3, 12
+1fac4 j	-22 -> 1faae
+1fac6 li	a5, -1
+1fac8 addi	a1, sp, 16
+1faca mv	a0, s2
+1facc sw	a5, 16(sp)
+1face jal	-46094 -> 146c0 CVI_VENC_StartRecvFrame
+1fad2 mv	a1, a0
+1fad4 beqz	a0, 12 -> 1fae0
+1fad6 auipc	a0, 152
+1fada addi	a0, a0, 1514
+1fade j	-242 -> 1f9ec
+1fae0 addi	s4, sp, 480
+1fae4 li	a2, 720
+1fae8 li	a1, 0
+1faea mv	a0, s4
+1faec jal	-49708 -> 138c0 memset
+1faf0 mv	a1, s4
+1faf2 mv	a0, s2
+1faf4 jal	-46244 -> 14650 CVI_VENC_GetH265Trans
+1faf8 mv	s0, a0
+1fafa beqz	a0, 18 -> 1fb0c
+1fafc mv	a1, a0
+1fafe auipc	a0, 152
+1fb02 addi	a0, a0, 1514
+1fb06 jal	-51574 -> 13190 printf
+1fb0a j	-130 -> 1fa88
+1fb0c mv	a1, s4
+1fb0e mv	a0, s2
+1fb10 sd	zero, 480(sp)
+1fb12 jal	-47186 -> 142c0 CVI_VENC_SetH265Trans
+1fb16 mv	s0, a0
+1fb18 beqz	a0, 14 -> 1fb26
+1fb1a mv	a1, a0
+1fb1c auipc	a0, 152
+1fb20 addi	a0, a0, 1524
+1fb24 j	-30 -> 1fb06
+1fb26 addi	a1, sp, 40
+1fb28 mv	a0, s2
+1fb2a sd	a1, 8(sp)
+1fb2c sd	zero, 40(sp)
+1fb2e sd	zero, 48(sp)
+1fb30 sd	zero, 56(sp)
+1fb32 sd	zero, 64(sp)
+1fb34 jal	-50356 -> 13680 CVI_VENC_GetH265Vui
+1fb38 ld	a1, 8(sp)
+1fb3a mv	s0, a0
+1fb3c beqz	a0, 14 -> 1fb4a
+1fb3e mv	a1, a0
+1fb40 auipc	a0, 152
+1fb44 addi	a0, a0, 1528
+1fb48 j	-66 -> 1fb06
+1fb4a lui	a5, 65537
+1fb4e slli	a5, a5, 20
+1fb50 addi	a5, a5, 256
+1fb54 li	s4, 1
+1fb56 sd	a5, 40(sp)
+1fb58 slli	a5, s4, 32
+1fb5c addi	a4, a5, 1
+1fb60 addi	a5, a5, 30
+1fb62 sd	a5, 56(sp)
+1fb64 lui	a5, 65793
+1fb68 slli	a5, a5, 21
+1fb6a addi	a5, a5, 1280
+1fb6e mv	a0, s2
+1fb70 sd	a4, 48(sp)
+1fb72 sd	a5, 64(sp)
+1fb74 jal	-48036 -> 13fd0 CVI_VENC_SetH265Vui
+1fb78 mv	s0, a0
+1fb7a beqz	a0, 14 -> 1fb88
+1fb7c mv	a1, a0
+1fb7e auipc	a0, 152
+1fb82 addi	a0, a0, 1506
+1fb86 j	-128 -> 1fb06
+1fb88 addi	a1, sp, 184
+1fb8a mv	a0, s2
+1fb8c sd	a1, 8(sp)
+1fb8e jal	-51230 -> 13370 CVI_VENC_GetRcParam
+1fb92 ld	a1, 8(sp)
+1fb94 mv	s0, a0
+1fb96 beqz	a0, 14 -> 1fba4
+1fb98 mv	a1, s0
+1fb9a auipc	a0, 152
+1fb9e addi	a0, a0, 1518
+1fba2 j	-156 -> 1fb06
+1fba4 lw	a5, 36(s1)
+1fba6 beqz	a5, 28 -> 1fbc2
+1fba8 beq	a5, s4, 62 -> 1fbe6
+1fbac mv	a0, s2
+1fbae jal	-48270 -> 13f20 CVI_VENC_SetRcParam
+1fbb2 mv	s0, a0
+1fbb4 beqz	a0, 84 -> 1fc08
+1fbb6 mv	a1, s0
+1fbb8 auipc	a0, 152
+1fbbc addi	a0, a0, 1528
+1fbc0 j	-186 -> 1fb06
+1fbc2 li	a5, 35
+1fbc6 sw	a5, 384(sp)
+1fbca li	a5, 5
+1fbcc slli	a4, a5, 33
+1fbd0 slli	a5, a5, 34
+1fbd2 addi	a5, a5, 51
+1fbd6 addi	a4, a4, 1
+1fbd8 sd	a4, 404(sp)
+1fbdc sd	a5, 412(sp)
+1fbe0 sd	a5, 420(sp)
+1fbe4 j	-56 -> 1fbac
+1fbe6 li	a5, 35
+1fbea sw	a5, 384(sp)
+1fbee li	a5, 5
+1fbf0 slli	a5, a5, 33
+1fbf2 addi	a5, a5, 1
+1fbf4 sd	a5, 408(sp)
+1fbf6 li	a5, 31
+1fbf8 slli	a5, a5, 32
+1fbfa addi	a5, a5, 46
+1fbfe sd	a5, 420(sp)
+1fc02 sd	a5, 428(sp)
+1fc06 j	-90 -> 1fbac
+1fc08 addi	a1, sp, 24
+1fc0a mv	a0, s2
+1fc0c sd	a1, 8(sp)
+1fc0e jal	-50798 -> 135a0 CVI_VENC_GetFrameLostStrategy
+1fc12 ld	a1, 8(sp)
+1fc14 mv	s0, a0
+1fc16 beqz	a0, 14 -> 1fc24
+1fc18 mv	a1, s0
+1fc1a auipc	a0, 152
+1fc1e addi	a0, a0, 1470
+1fc22 j	-284 -> 1fb06
+1fc24 li	a5, 1
+1fc26 sw	a5, 32(sp)
+1fc28 mv	a0, s2
+1fc2a jal	-49866 -> 13960 CVI_VENC_SetFrameLostStrategy
+1fc2e mv	s0, a0
+1fc30 beqz	a0, 296 -> 1fd58
+1fc34 mv	a1, a0
+1fc36 auipc	a0, 152
+1fc3a addi	a0, a0, 1490
+1fc3e j	-312 -> 1fb06
+1fc40 auipc	a5, 192
+1fc44 lbu	a5, -592(a5)
+1fc48 bnez	a5, -558 -> 1fa1a
+1fc4c li	a2, 96
+1fc50 li	a1, 0
+1fc52 addi	a0, sp, 200
+1fc54 jal	-50068 -> 138c0 memset
+1fc58 addi	a5, sp, 176
+1fc5a ld	a2, 4(s1)
+1fc5e li	a4, 96
+1fc62 sw	a4, 8(a5)
+1fc64 sd	a2, 188(sp)
+1fc68 lui	a2, 256
+1fc6c lw	a4, 8(s1)
+1fc6e sw	a2, 20(a5)
+1fc70 lw	a3, 4(s1)
+1fc72 sb	s4, 204(sp)
+1fc76 sw	a4, 36(a5)
+1fc78 sw	a3, 32(a5)
+1fc7a li	a4, 257
+1fc7e sh	a4, 217(sp)
+1fc82 lw	a4, 36(s1)
+1fc84 sw	s0, 108(a5)
+1fc86 beqz	a4, 100 -> 1fcea
+1fc88 beq	a4, s4, 120 -> 1fd00
+1fc8c addi	a1, sp, 184
+1fc8e mv	a0, s2
+1fc90 jal	-46640 -> 14660 CVI_VENC_CreateChn
+1fc94 mv	s0, a0
+1fc96 bnez	a0, -542 -> 1fa78
+1fc9a li	a5, -1
+1fc9c addi	a1, sp, 40
+1fc9e mv	a0, s2
+1fca0 sw	a5, 40(sp)
+1fca2 jal	-46562 -> 146c0 CVI_VENC_StartRecvFrame
+1fca6 mv	a1, a0
+1fca8 bnez	a0, -466 -> 1fad6
+1fcac addi	a1, sp, 480
+1fcae mv	a0, s2
+1fcb0 sd	a1, 8(sp)
+1fcb2 jal	-51522 -> 13370 CVI_VENC_GetRcParam
+1fcb6 ld	a1, 8(sp)
+1fcb8 mv	s0, a0
+1fcba bnez	a0, -290 -> 1fb98
+1fcbe lw	a5, 36(s1)
+1fcc0 beqz	a5, 68 -> 1fd04
+1fcc2 li	a4, 1
+1fcc4 beq	a5, a4, 106 -> 1fd2e
+1fcc8 mv	a0, s2
+1fcca jal	-48554 -> 13f20 CVI_VENC_SetRcParam
+1fcce mv	s0, a0
+1fcd0 bnez	a0, -282 -> 1fbb6
+1fcd4 addi	a1, sp, 72
+1fcd6 mv	a0, s2
+1fcd8 sd	a1, 8(sp)
+1fcda jal	-51002 -> 135a0 CVI_VENC_GetFrameLostStrategy
+1fcde ld	a1, 8(sp)
+1fce0 mv	s0, a0
+1fce2 bnez	a0, -202 -> 1fc18
+1fce4 li	a5, 1
+1fce6 sw	a5, 80(sp)
+1fce8 j	-192 -> 1fc28
+1fcea sw	s4, 72(a5)
+1fcee lw	a4, 20(s1)
+1fcf0 sw	s0, 80(a5)
+1fcf2 sw	a4, 76(a5)
+1fcf4 ld	a4, 24(s1)
+1fcf6 sd	a4, 260(sp)
+1fcfa lw	a4, 32(s1)
+1fcfc sw	a4, 92(a5)
+1fcfe j	-114 -> 1fc8c
+1fd00 sw	s0, 72(a5)
+1fd02 j	-20 -> 1fcee
+1fd04 li	a5, 125
+1fd08 slli	a5, a5, 35
+1fd0a addi	a5, a5, 35
+1fd0e sd	a5, 680(sp)
+1fd12 li	a5, 5
+1fd14 slli	a4, a5, 33
+1fd18 slli	a5, a5, 34
+1fd1a addi	a5, a5, 51
+1fd1e addi	a4, a4, 1
+1fd20 sd	a4, 700(sp)
+1fd24 sd	a5, 708(sp)
+1fd28 sd	a5, 716(sp)
+1fd2c j	-100 -> 1fcc8
+1fd2e li	a5, 125
+1fd32 slli	a5, a5, 35
+1fd34 addi	a5, a5, 35
+1fd38 sd	a5, 680(sp)
+1fd3c li	a5, 5
+1fd3e slli	a5, a5, 33
+1fd40 addi	a5, a5, 1
+1fd42 sd	a5, 704(sp)
+1fd46 li	a5, 31
+1fd48 slli	a5, a5, 32
+1fd4a addi	a5, a5, 46
+1fd4e sd	a5, 720(sp)
+1fd52 sd	a5, 728(sp)
+1fd56 j	-142 -> 1fcc8
+1fd58 addi	s0, sp, 480
+1fd5a mv	a3, s2
+1fd5c auipc	a2, 154
+1fd60 addi	a2, a2, -620
+1fd64 li	a1, 20
+1fd66 mv	a0, s0
+1fd68 jal	-50936 -> 13670 snprintf
+1fd6c lw	a3, 12(s1)
+1fd6e lw	a2, 8(s1)
+1fd70 lw	a1, 4(s1)
+1fd72 lbu	a0, 0(s1)
+1fd76 jal	-21900 -> 1a7ea
+1fd7a sext.w	a2, a0
+1fd7e li	a3, 1
+1fd80 li	a1, 3
+1fd82 mv	a0, s0
+1fd84 jal	-24062 -> 19f86
+1fd88 bgez	a0, 34 -> 1fdaa
+1fd8c lui	a2, 1
+1fd8e mv	a3, a0
+1fd90 addi	a2, a2, 1407
+1fd94 auipc	a1, 154
+1fd98 addi	a1, a1, -660
+1fd9c auipc	a0, 152
+1fda0 addi	a0, a0, 572
+1fda4 jal	-52244 -> 13190 printf
+1fda8 j	-898 -> 1fa26
+1fdaa li	a5, 480
+1fdae mul	a5, s2, a5
+1fdb2 sext.w	s0, a0
+1fdb6 lui	a0, 1
+1fdb8 add	s4, s3, a5
+1fdbc addi	s5, s4, 2047
+1fdc0 sb	s2, 1977(s5)
+1fdc4 lbu	a4, 0(s1)
+1fdc8 add	s4, s4, a0
+1fdca addi	a0, a0, 328
+1fdce add	a0, a0, a5
+1fdd0 sb	a4, 1978(s5)
+1fdd4 li	a2, 40
+1fdd8 mv	a1, s1
+1fdda sw	s0, 404(s4)
+1fdde add	a0, a0, s3
+1fde0 jal	-49168 -> 13dd0 memcpy
+1fde4 lw	a2, 12(s1)
+1fde6 ld	a1, 4(s1)
+1fdea lw	a0, 404(s4)
+1fdee jal	-21920 -> 1a84e
+1fdf2 sd	a0, 1985(s5)
+1fdf6 bnez	a0, 28 -> 1fe12
+1fdf8 auipc	a0, 154
+1fdfc addi	a0, a0, -1416
+1fe00 jal	-51520 -> 134c0 puts
+1fe04 mv	a0, s2
+1fe06 jal	-51638 -> 13450 CVI_VENC_DestroyChn
+1fe0a mv	a0, s0
+1fe0c jal	-23972 -> 1a068
+1fe10 j	-1002 -> 1fa26
+1fe12 li	a5, 257
+1fe16 sh	a5, 1979(s5)
+1fe1a li	a5, 1
+1fe1c auipc	a4, 192
+1fe20 sb	a5, -1068(a4)
+1fe24 li	s0, 0
+1fe26 j	-926 -> 1fa88

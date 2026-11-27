@@ -11,6 +11,7 @@ extern "C" {
 
 #include <condition_variable>
 #include <cstring>
+#include <deque>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -138,6 +139,15 @@ private:
 
 }  // namespace
 
+// One outstanding VENC request; only owned compressed bytes may queue for disk.
+struct EncodedFrame {
+    FrameTiming timing;
+    std::vector<std::uint8_t> packet;
+    Clock::time_point enc_pop_start;
+    std::int64_t enc_pop_us = 0, packet_us = 0, queue_wait_us = 0;
+    std::size_t queue_depth = 0;
+};
+
 struct Recording::Impl {
     Impl(const std::filesystem::path &directory, int native_width)
         : name(capture_name("video")), video(directory / (name + ".h265")),
@@ -155,13 +165,22 @@ struct Recording::Impl {
         timing_log.stream() << "frame_index\tpop_start_us\tt_us\tpop_us\tpop_timeouts\tretry_us"
             "\topen_us\twriter_wait_us\tpush_start_us\tpush_us\tpreview_us\tphoto_us"
             "\trelease_us\thold_us\tdisplay_count\tdisplay_us\tenc_pop_start_us\tenc_pop_us"
-            "\tpacket_us\tcrop_us\tvideo_write_us\tcsv_write_us\toutput_end_us\n";
-        worker = std::thread(&Impl::run, this);
+            "\tpacket_us\tcrop_us\tvideo_write_us\tcsv_write_us\toutput_end_us\tvpss_time_ref"
+            "\tcpu_mapped\tpixel_map_us\tcamera_buffers\tqueue_wait_us\tqueue_depth\n";
+        writer = std::thread(&Impl::write_loop, this);
+        try {
+            collector = std::thread(&Impl::collect_loop, this);
+        } catch (...) {
+            stop_worker();
+            throw;
+        }
     }
 
     ~Impl() { stop_worker(); }
-    void run();
-    void write_frame(const FrameTiming &timing, RecordStats &completed);
+    void collect_loop();
+    void write_loop();
+    void get_packet(EncodedFrame &frame);
+    void write_frame(const EncodedFrame &frame, RecordStats &completed);
     void stop_worker();
 
     std::string name;
@@ -171,16 +190,18 @@ struct Recording::Impl {
     int encoder_width;
     std::unique_ptr<SpsCrop> crop;
     std::unique_ptr<maix::video::Encoder> encoder;
-    std::vector<std::uint8_t> packet;
+    static constexpr std::size_t queue_capacity = 8;
+    std::deque<EncodedFrame> queue;
     Clock::time_point first{};
     RecordStats stats;
     std::mutex mutex;
     std::condition_variable changed;
-    // Stays engaged until the worker finishes both the encoded packet and its rows.
+    // Held until VENC data is copied, its stream released, and the packet queued.
     std::optional<FrameTiming> pending;
     std::exception_ptr failure;
     bool stopping = false;
-    std::thread worker;
+    bool input_done = false;
+    std::thread collector, writer;
 };
 
 Recording::Recording(const std::filesystem::path &directory, int native_width)
@@ -188,85 +209,121 @@ Recording::Recording(const std::filesystem::path &directory, int native_width)
 
 Recording::~Recording() = default;
 
-void Recording::append(std::unique_ptr<maix::pipeline::Frame> frame, FrameTiming timing) {
+void Recording::append(Nv21Frame &frame, FrameTiming timing) {
     auto &rec = *impl_;
-    if (frame->width() != rec.encoder_width) {
+    if (static_cast<int>(frame.info().u32Width) != rec.encoder_width) {
         throw std::runtime_error("VPSS width changed during recording");
     }
     const auto wait_start = Clock::now();
     {
         std::unique_lock<std::mutex> lock(rec.mutex);
-        rec.changed.wait(lock, [&] { return !rec.pending; });
+        rec.changed.wait(lock, [&] { return !rec.pending || rec.failure; });
         if (rec.failure) {
             std::rethrow_exception(rec.failure);
         }
     }
     timing.push_start = Clock::now();
     timing.writer_wait_us = micros(wait_start, timing.push_start);
-    const auto result = rec.encoder->push(frame.get());
+    auto input = frame.encoder_frame();
+    const auto result = rec.encoder->push(&input);
     const auto pushed = Clock::now();
     timing.push_us = micros(timing.push_start, pushed);
     if (result != maix::err::ERR_NONE) {
         throw std::runtime_error("VENC rejected the VPSS frame");
     }
-    frame.reset();
+    frame.release();
     timing.released = Clock::now();
     timing.release_us = micros(pushed, timing.released);
     {
         std::lock_guard<std::mutex> lock(rec.mutex);
         rec.pending = timing;
     }
-    rec.changed.notify_one();
+    rec.changed.notify_all();
 }
 
-void Recording::Impl::run() {
+void Recording::Impl::collect_loop() {
     std::unique_lock<std::mutex> lock(mutex);
-    for (;;) {
-        changed.wait(lock, [&] { return pending || stopping; });
-        if (!pending) {
-            return;
+    try {
+        for (;;) {
+            changed.wait(lock, [&] { return pending || stopping; });
+            if (!pending) {
+                return;
+            }
+            EncodedFrame frame;
+            frame.timing = *pending;
+            lock.unlock();
+            get_packet(frame);
+            const auto queued_at = Clock::now();
+            lock.lock();
+            changed.wait(lock, [&] { return queue.size() < queue_capacity || failure; });
+            if (!failure) {
+                frame.queue_wait_us = micros(queued_at, Clock::now());
+                frame.queue_depth = queue.size() + 1;
+                queue.push_back(std::move(frame));
+            }
+            pending.reset();
+            changed.notify_all();
         }
-        const FrameTiming timing = *pending;
-        auto completed = stats;
-        lock.unlock();
-        std::exception_ptr error;
-        try {
-            write_frame(timing, completed);
-        } catch (...) {
-            error = std::current_exception();
-        }
-        lock.lock();
+    } catch (...) {
+        if (!lock.owns_lock()) lock.lock();
+        failure = std::current_exception();
         pending.reset();
-        failure = error;
-        if (!error) {
+        changed.notify_all();
+    }
+}
+
+void Recording::Impl::write_loop() {
+    std::unique_lock<std::mutex> lock(mutex);
+    try {
+        for (;;) {
+            changed.wait(lock, [&] { return !queue.empty() || input_done || failure; });
+            if (queue.empty() || failure) {
+                return;
+            }
+            auto frame = std::move(queue.front());
+            queue.pop_front();
+            auto completed = stats;
+            changed.notify_all();
+            lock.unlock();
+            write_frame(frame, completed);
+            lock.lock();
             stats = completed;
         }
+    } catch (...) {
+        if (!lock.owns_lock()) lock.lock();
+        failure = std::current_exception();
         changed.notify_all();
-        if (error) {
-            return;
-        }
     }
 }
 
 void Recording::Impl::stop_worker() {
-    if (worker.joinable()) {
+    if (collector.joinable()) {
         {
             std::lock_guard<std::mutex> lock(mutex);
             stopping = true;
         }
         changed.notify_all();
-        worker.join();
+        collector.join();
+    }
+    if (writer.joinable()) {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            input_done = true;
+        }
+        changed.notify_all();
+        writer.join();
     }
 }
 
-void Recording::Impl::write_frame(const FrameTiming &timing, RecordStats &completed) {
-    const auto enc_pop_start = Clock::now();
+void Recording::Impl::get_packet(EncodedFrame &frame) {
+    frame.enc_pop_start = Clock::now();
     std::unique_ptr<maix::pipeline::Stream> encoded(encoder->pop());
     const auto encoded_at = Clock::now();
+    frame.enc_pop_us = micros(frame.enc_pop_start, encoded_at);
     if (!encoded || encoded->data_count() <= 0) {
         throw std::runtime_error("VENC returned no HEVC access unit");
     }
-    packet.clear();
+    auto &packet = frame.packet;
     for (int i = 0; i < encoded->data_count(); ++i) {
         const std::unique_ptr<maix::Bytes> part(encoded->data(i));
         if (!part || !part->data || part->size() == 0) {
@@ -275,7 +332,12 @@ void Recording::Impl::write_frame(const FrameTiming &timing, RecordStats &comple
         packet.insert(packet.end(), part->data, part->data + part->size());
     }
     encoded.reset();
+    frame.packet_us = micros(encoded_at, Clock::now());
+}
 
+void Recording::Impl::write_frame(const EncodedFrame &frame, RecordStats &completed) {
+    const auto &timing = frame.timing;
+    const auto &packet = frame.packet;
     const bool sps = (completed.frames == 0 || crop) && contains_sps(packet);
     if (completed.frames == 0) {
         if (!sps) {
@@ -303,10 +365,12 @@ void Recording::Impl::write_frame(const FrameTiming &timing, RecordStats &comple
         << '\t' << timing.retry_us << '\t' << timing.open_us << '\t' << timing.writer_wait_us
         << '\t' << micros(first, timing.push_start) << '\t' << timing.push_us << '\t' << timing.preview_us
         << '\t' << timing.photo_us << '\t' << timing.release_us << '\t' << micros(timing.captured, timing.released)
-        << '\t' << timing.display_count << '\t' << timing.display_us << '\t' << micros(first, enc_pop_start)
-        << '\t' << micros(enc_pop_start, encoded_at) << '\t' << micros(encoded_at, assembled)
+        << '\t' << timing.display_count << '\t' << timing.display_us << '\t' << micros(first, frame.enc_pop_start)
+        << '\t' << frame.enc_pop_us << '\t' << frame.packet_us
         << '\t' << (sps && crop ? micros(assembled, write_start) : 0) << '\t' << micros(write_start, video_done)
-        << '\t' << micros(video_done, csv_done) << '\t' << micros(first, csv_done) << '\n';
+        << '\t' << micros(video_done, csv_done) << '\t' << micros(first, csv_done)
+        << '\t' << timing.vpss_time_ref << '\t' << timing.cpu_mapped << '\t' << timing.pixel_map_us << '\t' << timing.camera_buffers
+        << '\t' << frame.queue_wait_us << '\t' << frame.queue_depth << '\n';
     completed.elapsed_us = elapsed;
     ++completed.frames;
 }

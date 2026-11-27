@@ -1,0 +1,4 @@
+*.h265 binary
+*.mp4 binary
+*.csv -text
+*.tsv -text

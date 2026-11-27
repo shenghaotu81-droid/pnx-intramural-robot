@@ -7,10 +7,12 @@
 #include "maix_camera.hpp"
 
 #include <atomic>
+#include <cstdlib>
 #include <future>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -56,9 +58,9 @@ public:
         timing.display_us = std::exchange(draw_us_, 0);
     }
 
-    void preview(cv::Mat rgb, const RecordStats &stats) {
+    void preview(cv::Mat nv21, const RecordStats &stats) {
         std::lock_guard<std::mutex> lock(mutex_);
-        state_.rgb = std::move(rgb);
+        state_.nv21 = std::move(nv21);
         state_.stats = stats;
         dirty_ = true;
     }
@@ -120,13 +122,15 @@ void close_photo(std::future<std::filesystem::path> &photo, Exchange &exchange) 
     }
 }
 
-void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchange &exchange) {
+void capture_frames(maix::camera::Camera &camera, int buffers, cv::Size preview_size, Exchange &exchange) {
     std::unique_ptr<Recording> recording;
     std::future<std::filesystem::path> photo;
     bool record_requested = false;
     bool photo_requested = false;
     auto next_preview = Clock::time_point{};
     int warmup_remaining = warmup_frames;
+    const int channel = camera.get_channel();
+    const cv::Size record_preview = preview_size.width > 240 ? cv::Size(240, 180) : preview_size;
     int native_width = 0;
     std::int64_t encoder_open_us = 0;
     int timeouts = 0;
@@ -168,14 +172,16 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
             }
 
             FrameTiming timing{};
+            timing.camera_buffers = buffers;
+            Nv21Frame frame(channel);
             timing.pop_start = Clock::now();
-            std::unique_ptr<maix::pipeline::Frame> native(camera.pop(camera_timeout_ms));
+            const int status = frame.acquire(camera_timeout_ms);
             timing.captured = Clock::now();
-            if (!native) {
+            if (status != 0) {
                 retry_us += micros(timing.pop_start, timing.captured);
                 if (++timeouts >= max_camera_timeouts) {
-                    maix::log::error("%d consecutive camera timeouts, %lld us in pop",
-                        timeouts, static_cast<long long>(retry_us));
+                    maix::log::error("%d failed VPSS reads, %lld us in pop, last status %d",
+                        timeouts, static_cast<long long>(retry_us), status);
                     throw std::runtime_error("Repeated camera read timeouts");
                 }
                 continue;
@@ -183,23 +189,31 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
             timing.pop_timeouts = std::exchange(timeouts, 0);
             timing.retry_us = std::exchange(retry_us, 0);
             exchange.take_display_times(timing);
+            frame.validate();
+            const auto &info = frame.info();
             if (warmup_remaining > 0) {
                 if (--warmup_remaining == 0) {
-                    native_width = Nv21Frame(*native).encoder_width();
-                    maix::log::info("VPSS frame %dx%d, NV21 strides %d/%d", native->width(), native->height(),
-                                   native->stride(0), native->stride(1));
+                    native_width = info.u32Width;
+                    maix::log::info("VPSS frame %ux%u, NV21 strides %u/%u", info.u32Width, info.u32Height,
+                                   info.u32Stride[0], info.u32Stride[1]);
                     exchange.notice("Ready");
                 }
                 continue;
             }
 
-            const Nv21Frame frame(*native);
+            const bool preview_due = timing.captured >= next_preview;
+            if (photo_requested || preview_due) {
+                const auto start = Clock::now();
+                frame.map_pixels();
+                timing.cpu_mapped = true;
+                timing.pixel_map_us = micros(start, Clock::now());
+            }
 
             if (photo_requested) {
                 const auto start = Clock::now();
                 photo_requested = false;
                 try {
-                    photo = std::async(std::launch::async, [pixels = frame.copy_pixels()] {
+                    photo = std::async(std::launch::async, [pixels = frame.sample({width, height})] {
                         return save_jpeg(output_directory, pixels);
                     });
                     exchange.notice("Saving photo");
@@ -210,17 +224,18 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
                 timing.photo_us = micros(start, Clock::now());
             }
 
-            if (timing.captured >= next_preview) {
+            if (preview_due) {
                 const auto start = Clock::now();
-                exchange.preview(frame.preview_rgb(preview_size), recording ? recording->stats() : RecordStats{});
+                exchange.preview(frame.sample(recording ? record_preview : preview_size), recording ? recording->stats() : RecordStats{});
                 next_preview = timing.captured + (recording ? record_preview_interval : idle_preview_interval);
                 timing.preview_us = micros(start, Clock::now());
             }
             if (recording) {
                 timing.open_us = std::exchange(encoder_open_us, 0);
-                timing.driver_pts = frame.driver_pts();
+                timing.driver_pts = info.u64PTS;
+                timing.vpss_time_ref = info.u32TimeRef;
                 try {
-                    recording->append(std::move(native), timing);
+                    recording->append(frame, timing);
                 } catch (const std::exception &error) {
                     maix::log::error("Recording failed: %s", error.what());
                     recording.reset();
@@ -247,13 +262,22 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
 int run() {
     std::filesystem::create_directories(output_directory);
     cv::setNumThreads(1);
+    int buffers = camera_buffers;
+    if (const char *value = std::getenv("CAPTURE_CPP_CAMERA_BUFFERS")) {
+        if (std::string_view(value) == "2") {
+            buffers = 2;
+        } else if (std::string_view(value) != "1") {
+            throw std::invalid_argument("CAPTURE_CPP_CAMERA_BUFFERS must be 1 or 2");
+        }
+    }
+    maix::log::info("Camera requested at %d fps with %d buffer(s)", fps, buffers);
     maix::camera::Camera camera(width, height, maix::image::FMT_YVU420SP,
-                               nullptr, fps, camera_buffers, true, false);
+                               nullptr, fps, buffers, true, false);
     maix::display::Display display;
     maix::touchscreen::TouchScreen touch;
     PreviewUi ui(display);
     Exchange exchange;
-    std::thread worker(capture_frames, std::ref(camera), ui.preview_size(), std::ref(exchange));
+    std::thread worker(capture_frames, std::ref(camera), buffers, ui.preview_size(), std::ref(exchange));
 
     try {
         auto next_draw = Clock::time_point{};

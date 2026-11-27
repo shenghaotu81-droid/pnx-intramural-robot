@@ -11,7 +11,7 @@
 | 录像流程模拟 | 模拟编码器收到 1472×1080 NV21，实际包字节写成可见尺寸为 1440×1080 的文件。缺少 SPS 的录制会清理临时文件。 |
 | Sipeed `maixtool 1.4.4` 打包 | `capture_v1.0.1.zip` 包含 `app.yaml` 和四个运行模块。 |
 
-在 `board_capture/` 下运行 `python3 -B -m unittest discover -s tests -v` 可重跑 SPS 单元测试。本次修改通过本机验证，尚未在 MaixCAM 上录制新样片。
+在 `board_capture/` 下运行 `python3 -B -m unittest discover -s tests -v` 可重跑 SPS 单元测试。之后实机补录了 1.0.1 样片，原始 H.265 和配套 MP4 均完整解码 98 帧，解码像素哈希相同。 [分版本证据与校验清单](../../evidence/board_capture/README.md)
 
 ## 1.0.0 本机验证记录
 

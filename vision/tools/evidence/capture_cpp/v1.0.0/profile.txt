@@ -1,0 +1,11 @@
+video_19700101_001054_555828_633.csv   frames=550
+elapsed=38.328876 s   fps=14.32
+capture intervals (ms)   median=65.585   p95=99.992   max=1367.101
+within 33.333 +/- 2 ms: 5/549 capture intervals
+VPSS intervals (raw ticks)   median=66627   p95=99985   max=1366694
+No matching .timing.tsv; showing capture timestamps only.
+335 -> 336   gap=1367.101 ms   VPSS delta=1366694
+0 -> 1   gap=262.915 ms   VPSS delta=263405
+180 -> 181   gap=128.501 ms   VPSS delta=128563
+150 -> 151   gap=128.497 ms   VPSS delta=128552
+60 -> 61   gap=128.469 ms   VPSS delta=128468

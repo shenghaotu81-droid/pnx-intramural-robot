@@ -1,6 +1,6 @@
 # 高速板端采集
 
-`capture_cpp` 是 MaixCAM／MaixCAM-Pro 的 MaixCDK C++ 应用，用于校内赛的动态 q 标定。相机固定请求 **1440×1080、30 fps、NV21、单缓冲**，启动后预热 10 帧。JPG 和 H.265 的可见尺寸都是 1440×1080。录像帧率以录制界面和随视频保存的逐帧时间为准。
+`capture_cpp` 是 MaixCAM／MaixCAM-Pro 的 MaixCDK C++ 应用，用于校内赛的动态 q 标定。相机固定请求 **1440×1080、30 fps、NV21、单缓冲**，启动后预热 10 帧。JPG 和 H.265 的可见尺寸都是 1440×1080。录像帧率以录制界面和随视频保存的逐帧时间为准。1.1.0 实机录得 19.79 fps，1.2.0 的板端吞吐待复测。
 
 ## 使用
 
@@ -26,7 +26,7 @@ done
 
 ## 构建与上板
 
-使用 Sipeed MaixCDK `83f8b8d`，本项目用该版本的 MaixCAM 原生帧 API 和 SDK 随附 FFmpeg。下面假设 `MaixCDK` 与比赛仓库并排存放。电脑需要 Python、CMake，以及官方快速入门列出的构建依赖。 [MaixCDK 快速入门](https://wiki.sipeed.com/maixcdk/doc/)
+使用 Sipeed MaixCDK `83f8b8d`，本项目使用该版本的 MaixCAM 原生帧 API、随附 FFmpeg、OpenCV 及 Sophgo middleware。CMake 已声明这些依赖。包内的 `libvpu.so` 提供 VPSS 取帧，`libsys.so` 提供带缓存映射。下面假设 `MaixCDK` 与比赛仓库并排存放。电脑需要 Python、CMake，以及官方快速入门列出的构建依赖。 [MaixCDK 快速入门](https://wiki.sipeed.com/maixcdk/doc/)
 
 ```bash
 # 从比赛仓库根目录执行
@@ -36,18 +36,18 @@ cd vision/tools/capture_cpp
 maixcdk release -p maixcam --toolchain-id default
 ```
 
-安装包位于 `dist/capture_cpp_v1.1.0.zip`。电脑与板子在同一局域网时，可以在应用商店扫码安装。 [MaixCDK 应用安装说明](https://wiki.sipeed.com/maixcdk/doc/convention/app.html)
+安装包位于 `dist/capture_cpp_v1.2.0.zip`。电脑与板子在同一局域网时，可以在应用商店扫码安装。 [MaixCDK 应用安装说明](https://wiki.sipeed.com/maixcdk/doc/convention/app.html)
 
 ```bash
-maixtool deploy --pkg dist/capture_cpp_v1.1.0.zip
+maixtool deploy --pkg dist/capture_cpp_v1.2.0.zip
 ```
 
 也可以用 SSH 安装，将示例地址 `192.168.1.50` 换成板子的实际地址。安装后从板端菜单打开应用。
 
 ```bash
 BOARD=192.168.1.50
-scp dist/capture_cpp_v1.1.0.zip "root@$BOARD:/root/"
-ssh "root@$BOARD" 'app_store_cli install /root/capture_cpp_v1.1.0.zip'
+scp dist/capture_cpp_v1.2.0.zip "root@$BOARD:/root/"
+ssh "root@$BOARD" 'app_store_cli install /root/capture_cpp_v1.2.0.zip'
 ```
 
 采集结束后导出素材、标定 CSV 和计时日志。
@@ -57,8 +57,20 @@ mkdir -p "$HOME/Downloads/maix-capture-cpp"
 scp -r "root@$BOARD:/root/capture_cpp/." "$HOME/Downloads/maix-capture-cpp/"
 ```
 
+## 单缓冲与双缓冲对照
+
+板端菜单默认单缓冲。若要比较 VPSS 在多一个可用缓冲时的交付节奏，先退出菜单中正在运行的采集应用，再通过 SSH 在板上运行下列命令。将 `2` 改为 `1` 可用相同启动方式采集对照组。
+
+```bash
+cd /maixapp/apps/capture_cpp
+CAPTURE_CPP_CAMERA_BUFFERS=2 ./capture_cpp
+```
+
+两组尽量保持相同光照、运动、存储介质和录像时长。每份 TSV 都包含 `camera_buffers`、原生 VPSS 取帧耗时 `pop_us` 和按需映射耗时 `pixel_map_us`。观察双缓冲下采集时间与驱动 PTS 的间隔差异，再决定用于标定的配置。 [1.1.0 实拍分析和复测判据](docs/pop-performance.md)
+
 ## 文档
 
 - [MaixCDK API 与实现](docs/maixcdk-api.md)
 - [设计核验、验证记录与实机验收](docs/validation.md)
 - [1.0.0 实拍基线与 1.1.0 优化依据](docs/performance.md)
+- [分版本的板端证据与 SHA-256 校验](../evidence/capture_cpp/README.md)

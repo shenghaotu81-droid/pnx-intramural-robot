@@ -57,11 +57,29 @@ def report(path):
         if len(details) != len(frames) or any(d["t_us"] != f["t_us"] for d, f in zip(details, frames)):
             raise ValueError("timing rows do not match the calibration CSV")
         print(f"{trace.name}   pop timeouts={sum(d['pop_timeouts'] for d in details)}")
+        vpss_fields = {"vpss_time_ref", "cpu_mapped", "pixel_map_us", "camera_buffers",
+                       "queue_wait_us", "queue_depth"}
+        if vpss_fields.intersection(details[0]):
+            if not vpss_fields.issubset(details[0]):
+                raise ValueError("incomplete VPSS timing header")
+            stages += ["pixel_map_us", "queue_wait_us"]
+            print(f"VPSS get timed separately; camera buffers={details[0]['camera_buffers']}   "
+                  f"CPU-mapped frames={sum(d['cpu_mapped'] for d in details)}/{len(details)}   "
+                  f"maximum queued packets={max(d['queue_depth'] for d in details)}")
+        else:
+            print("pop_us includes VPSS get, CPU mapping and cache invalidation.")
         print("stage                nonzero/total       median       p95       max   (ms, all frames)")
         for stage in stages:
             values = [row[stage] for row in details]
             print(f"{stage:<20} {sum(v > 0 for v in values):5}/{len(values):<5}"
                   f" {median(values)/1000:10.3f} {p95(values)/1000:9.3f} {max(values)/1000:9.3f}")
+        for preview in (False, True):
+            pairs = [(a, b) for a, b in zip(details, details[1:]) if bool(a["preview_us"]) == preview]
+            if pairs:
+                gap = median(b["t_us"] - a["t_us"] for a, b in pairs)
+                pop = median(b["pop_us"] for _, b in pairs)
+                print(f"previous preview={preview}: {len(pairs)} gaps, median gap={gap/1000:.3f} ms"
+                      f", following pop={pop/1000:.3f} ms")
     else:
         print("No matching .timing.tsv; showing capture timestamps only.")
     for i in slowest:

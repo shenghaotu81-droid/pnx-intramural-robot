@@ -1,6 +1,6 @@
 #pragma once
 
-#include "maix_pipeline.hpp"
+#include "nv21_frame.hpp"
 
 #include <chrono>
 #include <cstddef>
@@ -20,6 +20,10 @@ inline std::int64_t micros(Clock::time_point start, Clock::time_point end) {
 struct FrameTiming {
     Clock::time_point pop_start, captured, push_start, released;
     std::uint64_t driver_pts = 0;
+    std::uint32_t vpss_time_ref = 0;
+    bool cpu_mapped = false;
+    std::int64_t pixel_map_us = 0;
+    int camera_buffers = 1;
     int pop_timeouts = 0;
     std::int64_t retry_us = 0, open_us = 0, writer_wait_us = 0, push_us = 0;
     std::int64_t preview_us = 0, photo_us = 0, release_us = 0;
@@ -41,9 +45,9 @@ public:
     Recording(const std::filesystem::path &directory, int native_width);
     ~Recording();
 
-    // Takes ownership of the last CPU reference. The SDK can reuse the VPSS
+    // Releases the native frame before waking the output worker. The SDK can reuse the VPSS
     // buffer after push; the output worker needs only the timing metadata.
-    void append(std::unique_ptr<maix::pipeline::Frame> frame, FrameTiming timing);
+    void append(Nv21Frame &frame, FrameTiming timing);
     RecordStats stats() const;
     std::filesystem::path finish();
 

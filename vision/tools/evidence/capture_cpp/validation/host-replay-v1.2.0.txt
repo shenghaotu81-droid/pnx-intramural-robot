@@ -1,0 +1,4 @@
+v1.0.0, encoder width 1440, 550 frames verified, peak FIFO 8/8
+v1.0.0, encoder width 1472, 550 frames verified, peak FIFO 8/8
+v1.1.0, encoder width 1440, 1238 frames verified, peak FIFO 8/8
+v1.1.0, encoder width 1472, 1238 frames verified, peak FIFO 8/8

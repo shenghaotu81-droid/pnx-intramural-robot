@@ -1,0 +1,35 @@
+video_19700101_025602_122520_631.csv   frames=1238
+elapsed=62.502680 s   fps=19.79
+capture intervals (ms)   median=39.676   p95=64.026   max=294.674
+within 33.333 +/- 2 ms: 4/1237 capture intervals
+VPSS intervals (raw ticks)   median=39714   p95=63641   max=294229
+video_19700101_025602_122520_631.timing.tsv   pop timeouts=0
+pop_us includes VPSS get, CPU mapping and cache invalidation.
+stage                nonzero/total       median       p95       max   (ms, all frames)
+pop_us                1238/1238      37.382    60.998    77.098
+retry_us                 0/1238       0.000     0.000     0.000
+open_us                  1/1238       0.000     0.000   158.250
+writer_wait_us        1238/1238       0.003     0.004   257.661
+push_us               1238/1238       0.374     0.472     9.225
+preview_us             418/1238       0.000    34.239    57.687
+photo_us                 0/1238       0.000     0.000     0.000
+release_us            1238/1238       0.122     0.272     5.554
+hold_us               1238/1238       0.546    34.923   258.224
+display_us             420/1238       0.000    11.869    21.132
+enc_pop_us            1238/1238      10.261    14.403    17.107
+packet_us             1238/1238       0.266     0.406     5.141
+crop_us                 42/1238       0.000     0.000    60.309
+video_write_us        1238/1238       0.567     1.083   271.990
+csv_write_us          1238/1238       0.017     0.020     9.507
+previous preview=False: 819 gaps, median gap=38.226 ms, following pop=37.627 ms
+previous preview=True: 418 gaps, median gap=62.627 ms, following pop=28.328 ms
+419 -> 420   gap=294.674 ms   VPSS delta=294229
+  previous capture to next successful pop start=258.254 ms   previous hold=258.224 ms   current retry=0.000 ms   current pop=36.420 ms
+864 -> 865   gap=128.249 ms   VPSS delta=129552
+  previous capture to next successful pop start=84.383 ms   previous hold=84.357 ms   current retry=0.000 ms   current pop=43.866 ms
+601 -> 602   gap=123.654 ms   VPSS delta=123745
+  previous capture to next successful pop start=46.556 ms   previous hold=46.422 ms   current retry=0.000 ms   current pop=77.098 ms
+961 -> 962   gap=122.614 ms   VPSS delta=123138
+  previous capture to next successful pop start=55.140 ms   previous hold=55.016 ms   current retry=0.000 ms   current pop=67.473 ms
+862 -> 863   gap=120.355 ms   VPSS delta=122959
+  previous capture to next successful pop start=47.764 ms   previous hold=47.633 ms   current retry=0.000 ms   current pop=72.590 ms

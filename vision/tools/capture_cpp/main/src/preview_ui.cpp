@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <iomanip>
+#include <opencv2/imgproc.hpp>
 #include <sstream>
 #include <stdexcept>
 
@@ -75,11 +76,16 @@ Action PreviewUi::read_touch(maix::touchscreen::TouchScreen &touch) {
 
 void PreviewUi::show(const PreviewState &state) {
     fill(canvas_, {0, 0, canvas_.width(), canvas_.height()}, background);
-    if (state.rgb.empty()) {
+    if (state.nv21.empty()) {
         centered_label(canvas_, preview_, "Waiting for camera");
     } else {
-        Image view(state.rgb.cols, state.rgb.rows, maix::image::FMT_RGB888, state.rgb.data,
-                   static_cast<int>(state.rgb.total() * state.rgb.elemSize()), false);
+        cv::Mat rgb;
+        cv::cvtColor(state.nv21, rgb, cv::COLOR_YUV2RGB_NV21);
+        if (rgb.size() != preview_.size()) {
+            cv::resize(rgb, rgb, preview_.size(), 0, 0, cv::INTER_NEAREST);
+        }
+        Image view(rgb.cols, rgb.rows, maix::image::FMT_RGB888, rgb.data,
+                   static_cast<int>(rgb.total() * rgb.elemSize()), false);
         canvas_.draw_image(preview_.x, preview_.y, view);
     }
     canvas_.draw_string(10, 8, state.recording ? recording_label(state.stats) : "1440 x 1080");

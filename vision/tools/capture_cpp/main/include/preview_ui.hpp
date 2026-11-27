@@ -13,7 +13,7 @@ namespace capture {
 enum class Action { none, photo, record, exit };
 
 struct PreviewState {
-    cv::Mat rgb;
+    cv::Mat nv21;
     RecordStats stats;
     std::string notice;
     bool recording = false;
