@@ -4,6 +4,7 @@
 
 ## 结构
 
+- 板端照片、静态内参与动态 q 标定素材的采集和导出见[采集工具](tools/README.md)。
 - `pipeline/`：视觉管线库，密封。检测 → 位姿 → 跟踪，内部不动。
 - `controller/`：通用控制器库。给定期望状态算速度，与系和语义无关。
 - `adapter/`：适配层库。把 pipeline 的相机系输出转成车体系，按 mode 拼出 G5 要的 CurrentState/DesiredState，只做几何 + 语义，不做判断。

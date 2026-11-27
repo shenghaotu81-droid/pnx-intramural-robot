@@ -13,42 +13,29 @@ Python 迭代样片 `video_20261126_172653_855857_960bd3de.h265` 能解码 98 �
 | MaixCDK `83f8b8d` 交叉编译和打包 | `maixcam` Release 编译、链接和打包通过。ZIP 中的 `capture_cpp` 是 RISC-V musl 可执行文件，内置输出路径为 `/root/capture_cpp`。 |
 | NV21 平面与拍照 | 用模拟的 1472 字节 Y/VU 行距、1440 有效像素验证了拷贝、预览转色和 1440×1080 JPG。模拟越界的 VU 地址被拒绝。 |
 | 编码数据与时间 | 以两套 12 帧的合成 HEVC 包模拟硬件返回，将起始码拆在两个片段中。1440 直通和 1472 裁剪都生成可完整解码的 1440×1080 录像，与对应 FFmpeg 参考输出逐像素一致。两套 CSV 各有 12 行，帧号和微秒值对齐。 |
-| 录像错误收尾 | 首包缺少 SPS 时拒绝发布文件，并清理视频和 CSV 暂存文件。 |
+| 录像错误收尾 | 首包缺少 SPS 时，下一次提交或直接停止都能取到后台错误。空录像和失败录像都清理暂存文件。 |
+| 1.1.0 并行收尾与计时 | 模拟取流阻塞 4 ms，检查调用方在取流前已归还相机帧。上一帧仍在输出时可以开始取下一帧，两次编码请求保持串行。停止后完整解码 12 帧，CSV 与 TSV 的帧号和 `t_us` 一致，日志反映了注入的等待。 |
+| 550 帧实拍文件回放 | 在主机用原始 H.265 的 550 个访问单元模拟编码器输出，注入旧 CSV 的时间。直通和裁剪两条路径都生成 550 行 TSV，生成的三列 CSV 与原文件逐字节相同，整段解码后的像素 SHA-256 与原录像相同。 |
 
-本机结果验证了构建与数据处理。NV21 单缓冲实际开通道、原生 VENC 吞吐和持续帧率仍需用目标板与相机组合测量。
+1.0.0 实机样片已验证 1440×1080 录像，平均 14.32 fps。1.1.0 的持续吞吐和长间隔频率待同一块板复测。 [实拍基线与优化依据](performance.md)
 
 ## 板上验收
 
 | 步骤 | 检查 |
 | --- | --- |
 | 从板端菜单启动 | 画面与按钮正常，启动日志显示原生宽高和 Y/VU 行距。留意 `mmf add vi channel failed` 等底层报错。 |
-| 让 MARK 以 0.5 m/s 匀速通过，录一段约 20 秒的视频 | 录像计时与实际采集相近，FPS 接近 30。预览更新节流，跟踪取录像中的每帧。 |
-| 录像中拍一张 JPG，随后停止并退出 | 视频、CSV 和 JPG 都写入 `/root/capture_cpp/`。重新打开可以再次录制。 |
+| 用相同相机、场景和存储介质录至少 40 秒，再让 MARK 以 0.5 m/s 匀速通过 | 对照旧版的 14.32 fps、P95 99.992 ms 和最长 1367.101 ms，记录本次帧率、P95 和最长间隔。目标约 30 fps，长间隔会直接影响运动采样。 |
+| 录像中拍一张 JPG，随后停止并退出 | 视频、CSV、计时 TSV 和 JPG 都写入 `/root/capture_cpp/`。重新打开可以再次录制。 |
 | 核对导出的录像和 CSV | H.265 可以整段解码，可见尺寸 1440×1080，帧数等于 CSV 数据行数。观察 MARK 边缘、颜色以及相邻帧时间。 |
 
-电脑上在导出目录执行以下检查。同名 CSV 的 `t_us` 用于计算测得帧率和帧间隔，视频的播放时间仍按 30 fps 解释。
+在仓库根目录检查导出的每段录像。FFprobe 的解码帧数应等于脚本报告的 CSV 帧数，1.1.0 的诊断脚本还会核对 TSV 帧号和采集时间。 [日志读法](timing.md)
 
 ```bash
-cd "$HOME/Downloads/maix-capture-cpp"
-for video in video_*.h265; do
+for video in "$HOME"/Downloads/maix-capture-cpp/video_*.h265; do
     ffprobe -v error -count_frames -select_streams v:0 \
         -show_entries stream=codec_name,width,height,coded_width,nb_read_frames \
         -of default=nw=1 "$video"
     ffmpeg -v error -xerror -i "$video" -f null -
-    python3 - "${video%.h265}.csv" <<'PY'
-import csv
-import statistics
-import sys
-
-with open(sys.argv[1], newline="") as source:
-    frames = list(csv.DictReader(source))
-times = [int(frame["t_us"]) for frame in frames]
-gaps = [end - start for start, end in zip(times, times[1:])]
-print(f"{sys.argv[1]}: {len(times)} frames")
-if gaps and times[-1] > times[0]:
-    print(f"{(len(times) - 1) * 1e6 / (times[-1] - times[0]):.2f} fps, "
-          f"median gap {statistics.median(gaps) / 1000:.1f} ms, "
-          f"max gap {max(gaps) / 1000:.1f} ms")
-PY
+    python3 vision/tools/capture_cpp/scripts/profile_capture.py "${video%.h265}.csv"
 done
 ```

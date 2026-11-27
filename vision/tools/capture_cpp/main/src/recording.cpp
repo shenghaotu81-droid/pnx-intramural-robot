@@ -9,15 +9,19 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
+#include <condition_variable>
 #include <cstring>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <limits>
+#include <mutex>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include <unistd.h>
 #include <vector>
 
@@ -112,16 +116,16 @@ public:
         }
     }
 
-    void write(const std::vector<std::uint8_t> &packet, OutputFile &output) {
+    const AVPacket &apply(const std::vector<std::uint8_t> &packet) {
         if (packet.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
             throw std::runtime_error("Oversized HEVC packet");
         }
+        av_packet_unref(packet_.get());
         check_av(av_new_packet(packet_.get(), static_cast<int>(packet.size())), "Allocate packet payload");
         std::memcpy(packet_->data, packet.data(), packet.size());
         check_av(av_bsf_send_packet(context_.get(), packet_.get()), "Send HEVC SPS for crop");
         check_av(av_bsf_receive_packet(context_.get(), packet_.get()), "Receive cropped HEVC SPS");
-        output.write(packet_->data, packet_->size);
-        av_packet_unref(packet_.get());
+        return *packet_;
     }
 
 private:
@@ -137,7 +141,8 @@ private:
 struct Recording::Impl {
     Impl(const std::filesystem::path &directory, int native_width)
         : name(capture_name("video")), video(directory / (name + ".h265")),
-          timestamps(directory / (name + ".csv")), encoder_width(native_width) {
+          timestamps(directory / (name + ".csv")), timing_log(directory / (name + ".timing.tsv")),
+          encoder_width(native_width) {
         if (encoder_width != width && encoder_width != aligned_width) {
             throw std::runtime_error("Unexpected encoder input width");
         }
@@ -147,17 +152,35 @@ struct Recording::Impl {
         encoder = std::make_unique<maix::video::Encoder>("", encoder_width, height,
             maix::image::FMT_YVU420SP, maix::video::VIDEO_H265_CBR, fps, fps, 6'000'000);
         timestamps.stream() << "frame_index,t_us,vpss_pts\n";
+        timing_log.stream() << "frame_index\tpop_start_us\tt_us\tpop_us\tpop_timeouts\tretry_us"
+            "\topen_us\twriter_wait_us\tpush_start_us\tpush_us\tpreview_us\tphoto_us"
+            "\trelease_us\thold_us\tdisplay_count\tdisplay_us\tenc_pop_start_us\tenc_pop_us"
+            "\tpacket_us\tcrop_us\tvideo_write_us\tcsv_write_us\toutput_end_us\n";
+        worker = std::thread(&Impl::run, this);
     }
+
+    ~Impl() { stop_worker(); }
+    void run();
+    void write_frame(const FrameTiming &timing, RecordStats &completed);
+    void stop_worker();
 
     std::string name;
     OutputFile video;
     OutputFile timestamps;
+    OutputFile timing_log;
     int encoder_width;
     std::unique_ptr<SpsCrop> crop;
     std::unique_ptr<maix::video::Encoder> encoder;
     std::vector<std::uint8_t> packet;
     Clock::time_point first{};
     RecordStats stats;
+    std::mutex mutex;
+    std::condition_variable changed;
+    // Stays engaged until the worker finishes both the encoded packet and its rows.
+    std::optional<FrameTiming> pending;
+    std::exception_ptr failure;
+    bool stopping = false;
+    std::thread worker;
 };
 
 Recording::Recording(const std::filesystem::path &directory, int native_width)
@@ -165,59 +188,155 @@ Recording::Recording(const std::filesystem::path &directory, int native_width)
 
 Recording::~Recording() = default;
 
-void Recording::append(maix::pipeline::Frame &frame, Clock::time_point captured, std::uint64_t driver_pts) {
+void Recording::append(std::unique_ptr<maix::pipeline::Frame> frame, FrameTiming timing) {
     auto &rec = *impl_;
-    if (frame.width() != rec.encoder_width) {
+    if (frame->width() != rec.encoder_width) {
         throw std::runtime_error("VPSS width changed during recording");
     }
-    if (rec.encoder->push(&frame) != maix::err::ERR_NONE) {
+    const auto wait_start = Clock::now();
+    {
+        std::unique_lock<std::mutex> lock(rec.mutex);
+        rec.changed.wait(lock, [&] { return !rec.pending; });
+        if (rec.failure) {
+            std::rethrow_exception(rec.failure);
+        }
+    }
+    timing.push_start = Clock::now();
+    timing.writer_wait_us = micros(wait_start, timing.push_start);
+    const auto result = rec.encoder->push(frame.get());
+    const auto pushed = Clock::now();
+    timing.push_us = micros(timing.push_start, pushed);
+    if (result != maix::err::ERR_NONE) {
         throw std::runtime_error("VENC rejected the VPSS frame");
     }
-    std::unique_ptr<maix::pipeline::Stream> encoded(rec.encoder->pop());
+    frame.reset();
+    timing.released = Clock::now();
+    timing.release_us = micros(pushed, timing.released);
+    {
+        std::lock_guard<std::mutex> lock(rec.mutex);
+        rec.pending = timing;
+    }
+    rec.changed.notify_one();
+}
+
+void Recording::Impl::run() {
+    std::unique_lock<std::mutex> lock(mutex);
+    for (;;) {
+        changed.wait(lock, [&] { return pending || stopping; });
+        if (!pending) {
+            return;
+        }
+        const FrameTiming timing = *pending;
+        auto completed = stats;
+        lock.unlock();
+        std::exception_ptr error;
+        try {
+            write_frame(timing, completed);
+        } catch (...) {
+            error = std::current_exception();
+        }
+        lock.lock();
+        pending.reset();
+        failure = error;
+        if (!error) {
+            stats = completed;
+        }
+        changed.notify_all();
+        if (error) {
+            return;
+        }
+    }
+}
+
+void Recording::Impl::stop_worker() {
+    if (worker.joinable()) {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            stopping = true;
+        }
+        changed.notify_all();
+        worker.join();
+    }
+}
+
+void Recording::Impl::write_frame(const FrameTiming &timing, RecordStats &completed) {
+    const auto enc_pop_start = Clock::now();
+    std::unique_ptr<maix::pipeline::Stream> encoded(encoder->pop());
+    const auto encoded_at = Clock::now();
     if (!encoded || encoded->data_count() <= 0) {
         throw std::runtime_error("VENC returned no HEVC access unit");
     }
-    rec.packet.clear();
+    packet.clear();
     for (int i = 0; i < encoded->data_count(); ++i) {
         const std::unique_ptr<maix::Bytes> part(encoded->data(i));
         if (!part || !part->data || part->size() == 0) {
             throw std::runtime_error("VENC returned an empty HEVC packet segment");
         }
-        rec.packet.insert(rec.packet.end(), part->data, part->data + part->size());
+        packet.insert(packet.end(), part->data, part->data + part->size());
     }
     encoded.reset();
 
-    const bool sps = contains_sps(rec.packet);
-    if (rec.stats.frames == 0) {
+    const bool sps = (completed.frames == 0 || crop) && contains_sps(packet);
+    if (completed.frames == 0) {
         if (!sps) {
             throw std::runtime_error("First HEVC access unit has no SPS");
         }
-        rec.first = captured;
+        first = timing.captured;
     }
-    if (sps && rec.crop) {
-        rec.crop->write(rec.packet, rec.video);
-    } else {
-        rec.video.write(rec.packet.data(), rec.packet.size());
+    const auto assembled = Clock::now();
+    const std::uint8_t *data = packet.data();
+    auto size = packet.size();
+    if (sps && crop) {
+        const auto &filtered = crop->apply(packet);
+        data = filtered.data;
+        size = filtered.size;
     }
-    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(captured - rec.first).count();
-    rec.timestamps.stream() << rec.stats.frames << ',' << elapsed << ',' << driver_pts << '\n';
-    rec.stats.elapsed_us = elapsed;
-    ++rec.stats.frames;
+    const auto write_start = Clock::now();
+    video.write(data, size);
+    const auto video_done = Clock::now();
+    const auto elapsed = micros(first, timing.captured);
+    timestamps.stream() << completed.frames << ',' << elapsed << ',' << timing.driver_pts << '\n';
+    const auto csv_done = Clock::now();
+
+    timing_log.stream() << completed.frames << '\t' << micros(first, timing.pop_start) << '\t'
+        << elapsed << '\t' << micros(timing.pop_start, timing.captured) << '\t' << timing.pop_timeouts
+        << '\t' << timing.retry_us << '\t' << timing.open_us << '\t' << timing.writer_wait_us
+        << '\t' << micros(first, timing.push_start) << '\t' << timing.push_us << '\t' << timing.preview_us
+        << '\t' << timing.photo_us << '\t' << timing.release_us << '\t' << micros(timing.captured, timing.released)
+        << '\t' << timing.display_count << '\t' << timing.display_us << '\t' << micros(first, enc_pop_start)
+        << '\t' << micros(enc_pop_start, encoded_at) << '\t' << micros(encoded_at, assembled)
+        << '\t' << (sps && crop ? micros(assembled, write_start) : 0) << '\t' << micros(write_start, video_done)
+        << '\t' << micros(video_done, csv_done) << '\t' << micros(first, csv_done) << '\n';
+    completed.elapsed_us = elapsed;
+    ++completed.frames;
 }
 
-const RecordStats &Recording::stats() const { return impl_->stats; }
+RecordStats Recording::stats() const {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->stats;
+}
 
 std::filesystem::path Recording::finish() {
     auto &rec = *impl_;
+    rec.stop_worker();
+    if (rec.failure) {
+        std::rethrow_exception(rec.failure);
+    }
     rec.encoder.reset();
     if (rec.stats.frames == 0) {
         return {};
     }
     rec.timestamps.finish();
+    bool timing_published = false;
     try {
+        rec.timing_log.finish();
+        timing_published = true;
         rec.video.finish();
     } catch (...) {
         std::error_code ignored;
+        if (timing_published) {
+            std::filesystem::remove(rec.timing_log.path(), ignored);
+        }
         std::filesystem::remove(rec.timestamps.path(), ignored);
         throw;
     }

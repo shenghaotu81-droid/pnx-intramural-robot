@@ -9,6 +9,7 @@
 #include <atomic>
 #include <future>
 #include <mutex>
+#include <optional>
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -34,26 +35,45 @@ public:
         return std::exchange(actions_, {});
     }
 
-    PreviewState snapshot() {
+    std::optional<PreviewState> take_redraw() {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (!dirty_) {
+            return {};
+        }
+        dirty_ = false;
         return state_;
+    }
+
+    void display_finished(std::int64_t duration) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        ++draws_;
+        draw_us_ += duration;
+    }
+
+    void take_display_times(FrameTiming &timing) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        timing.display_count = std::exchange(draws_, 0);
+        timing.display_us = std::exchange(draw_us_, 0);
     }
 
     void preview(cv::Mat rgb, const RecordStats &stats) {
         std::lock_guard<std::mutex> lock(mutex_);
         state_.rgb = std::move(rgb);
         state_.stats = stats;
+        dirty_ = true;
     }
 
     void set_recording(bool active) {
         std::lock_guard<std::mutex> lock(mutex_);
         state_.recording = active;
         state_.stats = {};
+        dirty_ = true;
     }
 
     void notice(std::string text) {
         std::lock_guard<std::mutex> lock(mutex_);
         state_.notice = std::move(text);
+        dirty_ = true;
     }
 
     std::atomic<bool> stop{false};
@@ -63,6 +83,9 @@ private:
     std::mutex mutex_;
     std::vector<Action> actions_;
     PreviewState state_;
+    bool dirty_ = true;
+    unsigned draws_ = 0;
+    std::int64_t draw_us_ = 0;
 };
 
 void close_video(std::unique_ptr<Recording> &recording, Exchange &exchange) {
@@ -104,7 +127,10 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
     bool photo_requested = false;
     auto next_preview = Clock::time_point{};
     int warmup_remaining = warmup_frames;
+    int native_width = 0;
+    std::int64_t encoder_open_us = 0;
     int timeouts = 0;
+    std::int64_t retry_us = 0;
     exchange.notice("Warming up");
 
     try {
@@ -127,17 +153,39 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
                 }
             }
 
+            if (record_requested && !recording && warmup_remaining == 0) {
+                try {
+                    const auto start = Clock::now();
+                    recording = std::make_unique<Recording>(output_directory, native_width);
+                    encoder_open_us = micros(start, Clock::now());
+                    exchange.set_recording(true);
+                    exchange.notice("");
+                } catch (const std::exception &error) {
+                    maix::log::error("Could not open recording: %s", error.what());
+                    record_requested = false;
+                    exchange.notice("Recording failed");
+                }
+            }
+
+            FrameTiming timing{};
+            timing.pop_start = Clock::now();
             std::unique_ptr<maix::pipeline::Frame> native(camera.pop(camera_timeout_ms));
-            const auto captured = Clock::now();
+            timing.captured = Clock::now();
             if (!native) {
+                retry_us += micros(timing.pop_start, timing.captured);
                 if (++timeouts >= max_camera_timeouts) {
+                    maix::log::error("%d consecutive camera timeouts, %lld us in pop",
+                        timeouts, static_cast<long long>(retry_us));
                     throw std::runtime_error("Repeated camera read timeouts");
                 }
                 continue;
             }
-            timeouts = 0;
+            timing.pop_timeouts = std::exchange(timeouts, 0);
+            timing.retry_us = std::exchange(retry_us, 0);
+            exchange.take_display_times(timing);
             if (warmup_remaining > 0) {
                 if (--warmup_remaining == 0) {
+                    native_width = Nv21Frame(*native).encoder_width();
                     maix::log::info("VPSS frame %dx%d, NV21 strides %d/%d", native->width(), native->height(),
                                    native->stride(0), native->stride(1));
                     exchange.notice("Ready");
@@ -146,24 +194,9 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
             }
 
             const Nv21Frame frame(*native);
-            if (record_requested) {
-                try {
-                    if (!recording) {
-                        recording = std::make_unique<Recording>(output_directory, frame.encoder_width());
-                        exchange.set_recording(true);
-                        exchange.notice("");
-                    }
-                    recording->append(*native, captured, frame.driver_pts());
-                } catch (const std::exception &error) {
-                    maix::log::error("Recording failed: %s", error.what());
-                    recording.reset();
-                    record_requested = false;
-                    exchange.set_recording(false);
-                    exchange.notice("Recording failed");
-                }
-            }
 
             if (photo_requested) {
+                const auto start = Clock::now();
                 photo_requested = false;
                 try {
                     photo = std::async(std::launch::async, [pixels = frame.copy_pixels()] {
@@ -174,11 +207,27 @@ void capture_frames(maix::camera::Camera &camera, cv::Size preview_size, Exchang
                     maix::log::error("Photo capture failed: %s", error.what());
                     exchange.notice("Photo capture failed");
                 }
+                timing.photo_us = micros(start, Clock::now());
             }
 
-            if (captured >= next_preview) {
+            if (timing.captured >= next_preview) {
+                const auto start = Clock::now();
                 exchange.preview(frame.preview_rgb(preview_size), recording ? recording->stats() : RecordStats{});
-                next_preview = captured + (recording ? record_preview_interval : idle_preview_interval);
+                next_preview = timing.captured + (recording ? record_preview_interval : idle_preview_interval);
+                timing.preview_us = micros(start, Clock::now());
+            }
+            if (recording) {
+                timing.open_us = std::exchange(encoder_open_us, 0);
+                timing.driver_pts = frame.driver_pts();
+                try {
+                    recording->append(std::move(native), timing);
+                } catch (const std::exception &error) {
+                    maix::log::error("Recording failed: %s", error.what());
+                    recording.reset();
+                    record_requested = false;
+                    exchange.set_recording(false);
+                    exchange.notice("Recording failed");
+                }
             }
         }
     } catch (const std::exception &error) {
@@ -218,9 +267,12 @@ int run() {
             }
             const auto now = Clock::now();
             if (now >= next_draw) {
-                const auto state = exchange.snapshot();
-                ui.show(state);
-                next_draw = now + (state.recording ? record_preview_interval : idle_preview_interval);
+                if (const auto state = exchange.take_redraw()) {
+                    const auto draw_start = Clock::now();
+                    ui.show(*state);
+                    exchange.display_finished(micros(draw_start, Clock::now()));
+                    next_draw = now + (state->recording ? record_preview_interval : idle_preview_interval);
+                }
             }
             std::this_thread::sleep_for(10ms);
         }
