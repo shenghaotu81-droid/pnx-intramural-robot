@@ -31,6 +31,8 @@ private:
     maix::image::Image canvas_;
     std::array<cv::Rect, 3> buttons_{};
     cv::Rect preview_;
+    cv::Mat small_rgb_;
+    bool record_button_active_ = false;
     bool pressed_ = false;
 };
 

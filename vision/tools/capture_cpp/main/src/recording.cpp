@@ -166,7 +166,8 @@ struct Recording::Impl {
             "\topen_us\twriter_wait_us\tpush_start_us\tpush_us\tpreview_us\tphoto_us"
             "\trelease_us\thold_us\tdisplay_count\tdisplay_us\tenc_pop_start_us\tenc_pop_us"
             "\tpacket_us\tcrop_us\tvideo_write_us\tcsv_write_us\toutput_end_us\tvpss_time_ref"
-            "\tcpu_mapped\tpixel_map_us\tcamera_buffers\tqueue_wait_us\tqueue_depth\n";
+            "\tcpu_mapped\tpixel_map_us\tcamera_buffers\tqueue_wait_us\tqueue_depth"
+            "\tqueue_capacity\tstartup_discarded\tisp_fps_milli\texposure_us\n";
         writer = std::thread(&Impl::write_loop, this);
         try {
             collector = std::thread(&Impl::collect_loop, this);
@@ -190,7 +191,6 @@ struct Recording::Impl {
     int encoder_width;
     std::unique_ptr<SpsCrop> crop;
     std::unique_ptr<maix::video::Encoder> encoder;
-    static constexpr std::size_t queue_capacity = 8;
     std::deque<EncodedFrame> queue;
     Clock::time_point first{};
     RecordStats stats;
@@ -255,7 +255,7 @@ void Recording::Impl::collect_loop() {
             get_packet(frame);
             const auto queued_at = Clock::now();
             lock.lock();
-            changed.wait(lock, [&] { return queue.size() < queue_capacity || failure; });
+            changed.wait(lock, [&] { return queue.size() < packet_queue_capacity || failure; });
             if (!failure) {
                 frame.queue_wait_us = micros(queued_at, Clock::now());
                 frame.queue_depth = queue.size() + 1;
@@ -362,7 +362,7 @@ void Recording::Impl::write_frame(const EncodedFrame &frame, RecordStats &comple
 
     timing_log.stream() << completed.frames << '\t' << micros(first, timing.pop_start) << '\t'
         << elapsed << '\t' << micros(timing.pop_start, timing.captured) << '\t' << timing.pop_timeouts
-        << '\t' << timing.retry_us << '\t' << timing.open_us << '\t' << timing.writer_wait_us
+        << '\t' << timing.retry_us << '\t' << timing.start.open_us << '\t' << timing.writer_wait_us
         << '\t' << micros(first, timing.push_start) << '\t' << timing.push_us << '\t' << timing.preview_us
         << '\t' << timing.photo_us << '\t' << timing.release_us << '\t' << micros(timing.captured, timing.released)
         << '\t' << timing.display_count << '\t' << timing.display_us << '\t' << micros(first, frame.enc_pop_start)
@@ -370,7 +370,9 @@ void Recording::Impl::write_frame(const EncodedFrame &frame, RecordStats &comple
         << '\t' << (sps && crop ? micros(assembled, write_start) : 0) << '\t' << micros(write_start, video_done)
         << '\t' << micros(video_done, csv_done) << '\t' << micros(first, csv_done)
         << '\t' << timing.vpss_time_ref << '\t' << timing.cpu_mapped << '\t' << timing.pixel_map_us << '\t' << timing.camera_buffers
-        << '\t' << frame.queue_wait_us << '\t' << frame.queue_depth << '\n';
+        << '\t' << frame.queue_wait_us << '\t' << frame.queue_depth << '\t' << packet_queue_capacity
+        << '\t' << timing.start.discarded << '\t' << timing.start.isp_fps_milli
+        << '\t' << timing.start.exposure_us << '\n';
     completed.elapsed_us = elapsed;
     ++completed.frames;
 }

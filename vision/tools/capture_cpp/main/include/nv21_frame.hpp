@@ -6,6 +6,9 @@
 
 namespace capture {
 
+// Write RGB directly into the display's ROI, which may have a larger parent stride.
+void render_nv21_preview(const cv::Mat &nv21, cv::Mat view, cv::Mat &small_rgb);
+
 // Owns one VPSS reference. Only CPU pixel consumers request a cached mapping.
 class Nv21Frame {
 public:

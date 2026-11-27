@@ -1,0 +1,42 @@
+video_19700101_033237_916722_625.csv   frames=1294
+elapsed=51.650681 s   fps=25.03
+capture intervals (ms)   median=38.582   p95=47.475   max=81.127
+within 33.333 +/- 2 ms: 15/1293 capture intervals
+VPSS intervals (raw ticks)   median=38568   p95=46796   max=152992
+video_19700101_033237_916722_625.timing.tsv   pop timeouts=0
+VPSS get timed separately; camera buffers=1   CPU-mapped frames=331/1294   maximum queued packets=8
+non-unit VPSS TimeRef steps=2/1293
+  0 -> 1   TimeRef step=4   software gap=28.390 ms   VPSS delta=152992 ticks
+  952 -> 953   TimeRef step=2   software gap=81.127 ms   VPSS delta=80205 ticks
+first interval: software=28.390 ms   VPSS delta=152992 ticks
+longest video writes (frame, ms): 942 431.853, 443 237.999, 487 18.834
+stage                nonzero/total       median       p95       max   (ms, all frames)
+pop_us                1294/1294      37.269    46.534    50.955
+retry_us                 0/1294       0.000     0.000     0.000
+open_us                  1/1294       0.000     0.000   156.855
+writer_wait_us        1294/1294       0.002     0.003    49.330
+push_us               1294/1294       0.415     3.852     8.289
+preview_us             331/1294       0.000     1.277     7.165
+photo_us                 0/1294       0.000     0.000     0.000
+release_us            1294/1294       0.026     0.124     1.006
+hold_us               1294/1294       0.671     5.813    51.265
+display_us             332/1294       0.000    22.981    45.611
+enc_pop_us            1294/1294      10.214    10.457    13.998
+packet_us             1294/1294       0.176     0.275     1.605
+crop_us                 44/1294       0.000     0.000    55.554
+video_write_us        1294/1294       0.579     1.004   431.853
+csv_write_us          1294/1294       0.019     0.020     1.438
+pixel_map_us           331/1294       0.000     0.262     6.137
+queue_wait_us         1294/1294       0.003     0.004    76.846
+previous preview=False: 962 gaps, median gap=38.361 ms, following pop=37.460 ms
+previous preview=True: 331 gaps, median gap=40.123 ms, following pop=36.663 ms
+952 -> 953   gap=81.127 ms   VPSS delta=80205
+  previous capture to next successful pop start=51.298 ms   previous hold=51.265 ms   current retry=0.000 ms   current pop=29.829 ms
+452 -> 453   gap=51.414 ms   VPSS delta=49235
+  previous capture to next successful pop start=0.459 ms   previous hold=0.429 ms   current retry=0.000 ms   current pop=50.955 ms
+607 -> 608   gap=50.843 ms   VPSS delta=49895
+  previous capture to next successful pop start=0.490 ms   previous hold=0.459 ms   current retry=0.000 ms   current pop=50.353 ms
+552 -> 553   gap=50.504 ms   VPSS delta=49552
+  previous capture to next successful pop start=1.907 ms   previous hold=1.876 ms   current retry=0.000 ms   current pop=48.597 ms
+602 -> 603   gap=50.256 ms   VPSS delta=49200
+  previous capture to next successful pop start=8.056 ms   previous hold=7.908 ms   current retry=0.000 ms   current pop=42.199 ms

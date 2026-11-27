@@ -13,6 +13,15 @@ namespace {
 constexpr int vpss_group = 0;  // MaixCAM Camera::open uses group 0.
 }
 
+void render_nv21_preview(const cv::Mat &nv21, cv::Mat view, cv::Mat &small_rgb) {
+    if (nv21.cols == view.cols && nv21.rows == view.rows * 3 / 2) {
+        cv::cvtColor(nv21, view, cv::COLOR_YUV2RGB_NV21);
+    } else {
+        cv::cvtColor(nv21, small_rgb, cv::COLOR_YUV2RGB_NV21);
+        cv::resize(small_rgb, view, view.size(), 0, 0, cv::INTER_NEAREST);
+    }
+}
+
 int Nv21Frame::acquire(int timeout_ms) {
     const int status = CVI_VPSS_GetChnFrame(vpss_group, channel_, &native_, timeout_ms);
     acquired_ = status == CVI_SUCCESS;

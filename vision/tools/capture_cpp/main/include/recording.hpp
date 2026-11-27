@@ -17,6 +17,19 @@ inline std::int64_t micros(Clock::time_point start, Clock::time_point end) {
     return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 }
 
+struct RecordingStart {
+    std::int64_t open_us = 0;
+    int discarded = 0;
+    int isp_fps_milli = -1;
+    std::int64_t exposure_us = -1;
+
+    bool discard_buffered_frame(int camera_buffers) {
+        if (discarded >= camera_buffers) return false;
+        ++discarded;
+        return true;
+    }
+};
+
 struct FrameTiming {
     Clock::time_point pop_start, captured, push_start, released;
     std::uint64_t driver_pts = 0;
@@ -25,7 +38,8 @@ struct FrameTiming {
     std::int64_t pixel_map_us = 0;
     int camera_buffers = 1;
     int pop_timeouts = 0;
-    std::int64_t retry_us = 0, open_us = 0, writer_wait_us = 0, push_us = 0;
+    RecordingStart start;
+    std::int64_t retry_us = 0, writer_wait_us = 0, push_us = 0;
     std::int64_t preview_us = 0, photo_us = 0, release_us = 0;
     unsigned display_count = 0;
     std::int64_t display_us = 0;

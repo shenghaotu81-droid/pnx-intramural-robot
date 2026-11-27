@@ -92,6 +92,21 @@ int main(int argc, char **argv) {
     cv::Mat rgb;
     cv::cvtColor(preview, rgb, cv::COLOR_YUV2RGB_NV21);
     assert(rgb.size() == cv::Size(240, 180) && rgb.at<cv::Vec3b>(179,239)[0] > 245);
+    // Compare the whole canvas against the former convert-resize-copy path, including
+    // the untouched margins and row stride, at both idle and recording preview sizes.
+    cv::RNG random(42);
+    random.fill(preview, cv::RNG::UNIFORM, 0, 256);
+    cv::cvtColor(preview, rgb, cv::COLOR_YUV2RGB_NV21);
+    cv::Mat scratch;
+    for (const auto size : {rgb.size(), cv::Size(352, 264)}) {
+        const cv::Rect area({12, 28}, size);
+        cv::Mat screen(320, 400, CV_8UC3, cv::Scalar(18, 23, 31));
+        cv::Mat reference = screen.clone(), scaled;
+        cv::resize(rgb, scaled, size, 0, 0, cv::INTER_NEAREST);
+        scaled.copyTo(reference(area));
+        render_nv21_preview(preview, screen(area), scratch);
+        assert(cv::norm(screen, reference, cv::NORM_INF) == 0);
+    }
     const auto jpg = cv::imread(save_jpeg(argv[4], photo).string());
     assert(jpg.size() == cv::Size(width,height) && jpg.at<cv::Vec3b>(1079,1439)[2] > 245);
 
@@ -104,7 +119,24 @@ int main(int argc, char **argv) {
     const auto origin = Clock::now();
     unsigned count = 0;
     try {
+        {
+            Recording cancelled(argv[4], native_width);
+            assert(cancelled.finish().empty());
+        }
         Recording rec(argv[4], native_width);
+        // Preloaded VPSS candidates must be released before the calibrated timeline.
+        const int buffers = native_width == width ? 1 : 2;
+        RecordingStart startup;
+        startup.open_us = 156855;
+        startup.isp_fps_milli = 30000;
+        startup.exposure_us = 18000;
+        for (int i = 0; i < buffers; ++i) {
+            Nv21Frame queued(1);
+            assert(queued.acquire(150) == 0);
+            queued.validate();
+            assert(startup.discard_buffered_frame(buffers));
+        }
+        assert(!held && !mapped);
         while (std::getline(csv, line)) {
             std::istringstream row(line);
             unsigned index;
@@ -117,6 +149,11 @@ int main(int argc, char **argv) {
             assert(frame.acquire(150) == 0);
             frame.validate();
             FrameTiming t{};
+            t.camera_buffers = buffers;
+            if (index == 0) {
+                assert(!startup.discard_buffered_frame(buffers));
+                t.start = startup;
+            }
             t.driver_pts = f.u64PTS;
             t.vpss_time_ref = count;
             t.pop_start = t.captured = origin + std::chrono::microseconds(elapsed);

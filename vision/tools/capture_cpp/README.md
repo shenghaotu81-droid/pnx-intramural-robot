@@ -1,10 +1,10 @@
 # 高速板端采集
 
-`capture_cpp` 是 MaixCAM／MaixCAM-Pro 的 MaixCDK C++ 应用，用于校内赛的动态 q 标定。相机固定请求 **1440×1080、30 fps、NV21、单缓冲**，启动后预热 10 帧。JPG 和 H.265 的可见尺寸都是 1440×1080。录像帧率以录制界面和随视频保存的逐帧时间为准。1.1.0 实机录得 19.79 fps，1.2.0 的板端吞吐待复测。
+`capture_cpp` 是 MaixCAM／MaixCAM-Pro 的 MaixCDK C++ 应用，用于校内赛的动态 q 标定。相机固定请求 **1440×1080、30 fps、NV21、默认单缓冲**，启动后预热 10 帧。JPG 和 H.265 的可见尺寸都是 1440×1080。录像帧率以录制界面和随视频保存的逐帧时间为准。1.2.0 单缓冲实测 **25.03 fps**，P95 帧间隔 47.475 ms。1.3.0 改善录像起点、短时写盘阻塞和预览绘制，实际 fps 待板测。 [实拍分析与收尾判据](docs/final-round.md)
 
 ## 使用
 
-从板端菜单打开 **高速图像采集（Capture C++）**。对准运动区域后，在 MARK 开始匀速运动前按 **Start REC**。
+从板端菜单打开 **高速图像采集（Capture C++）**。对准运动区域后，先按 **Start REC**。等顶部的 **Preparing video** 消失、录制计时开始，再让 MARK 匀速通过。应用在编码器就绪后先归还启动期间可能积压的相机帧。
 
 | 按钮 | 操作 |
 | --- | --- |
@@ -26,7 +26,16 @@ done
 
 ## 构建与上板
 
-使用 Sipeed MaixCDK `83f8b8d`，本项目使用该版本的 MaixCAM 原生帧 API、随附 FFmpeg、OpenCV 及 Sophgo middleware。CMake 已声明这些依赖。包内的 `libvpu.so` 提供 VPSS 取帧，`libsys.so` 提供带缓存映射。下面假设 `MaixCDK` 与比赛仓库并排存放。电脑需要 Python、CMake，以及官方快速入门列出的构建依赖。 [MaixCDK 快速入门](https://wiki.sipeed.com/maixcdk/doc/)
+可直接使用已校验的 1.3.0 安装包。电脑与板子连入同一局域网，在电脑的仓库根目录执行以下命令，然后用板端应用商店扫码。 [交付包](releases/capture_cpp_v1.3.0.zip) · [校验清单](releases/SHA256SUMS)
+
+```bash
+cd vision/tools/capture_cpp/releases
+python3 -m pip install maixtool
+sha256sum -c SHA256SUMS
+maixtool deploy --pkg capture_cpp_v1.3.0.zip
+```
+
+使用 Sipeed MaixCDK `83f8b8d`，本项目使用该版本的 MaixCAM 原生帧 API、随附 FFmpeg、OpenCV 及 Sophgo middleware。CMake 已声明这些依赖。包内的 `libvpu.so` 和 `libsys.so` 提供 VPSS 取帧与缓存映射，`libisp.so` 和 `libae.so` 提供启动时查询 ISP 和曝光所需的接口。下面假设 `MaixCDK` 与比赛仓库并排存放。电脑需要 Python、CMake，以及官方快速入门列出的构建依赖。 [MaixCDK 快速入门](https://wiki.sipeed.com/maixcdk/doc/)
 
 ```bash
 # 从比赛仓库根目录执行
@@ -36,18 +45,18 @@ cd vision/tools/capture_cpp
 maixcdk release -p maixcam --toolchain-id default
 ```
 
-安装包位于 `dist/capture_cpp_v1.2.0.zip`。电脑与板子在同一局域网时，可以在应用商店扫码安装。 [MaixCDK 应用安装说明](https://wiki.sipeed.com/maixcdk/doc/convention/app.html)
+自行构建的安装包位于 `dist/capture_cpp_v1.3.0.zip`。电脑与板子在同一局域网时，可以在应用商店扫码安装。 [设备端扫码和命令行安装说明](https://wiki.sipeed.com/maixpy/doc/zh/basic/app.html)
 
 ```bash
-maixtool deploy --pkg dist/capture_cpp_v1.2.0.zip
+maixtool deploy --pkg dist/capture_cpp_v1.3.0.zip
 ```
 
-也可以用 SSH 安装，将示例地址 `192.168.1.50` 换成板子的实际地址。安装后从板端菜单打开应用。
+也可以用 SSH 安装。在应用源码目录执行，将示例地址 `192.168.1.50` 换成板子的实际地址。安装后从板端菜单打开应用。
 
 ```bash
 BOARD=192.168.1.50
-scp dist/capture_cpp_v1.2.0.zip "root@$BOARD:/root/"
-ssh "root@$BOARD" 'app_store_cli install /root/capture_cpp_v1.2.0.zip'
+scp releases/capture_cpp_v1.3.0.zip "root@$BOARD:/root/"
+ssh "root@$BOARD" 'app_store_cli install /root/capture_cpp_v1.3.0.zip'
 ```
 
 采集结束后导出素材、标定 CSV 和计时日志。
@@ -66,7 +75,7 @@ cd /maixapp/apps/capture_cpp
 CAPTURE_CPP_CAMERA_BUFFERS=2 ./capture_cpp
 ```
 
-两组尽量保持相同光照、运动、存储介质和录像时长。每份 TSV 都包含 `camera_buffers`、原生 VPSS 取帧耗时 `pop_us` 和按需映射耗时 `pixel_map_us`。观察双缓冲下采集时间与驱动 PTS 的间隔差异，再决定用于标定的配置。 [1.1.0 实拍分析和复测判据](docs/pop-performance.md)
+两组尽量保持相同光照、运动、存储介质和录像时长。每份 TSV 都包含 `camera_buffers`、原生 VPSS 取帧耗时 `pop_us` 和按需映射耗时 `pixel_map_us`。用真实 fps、帧间隔及首帧软件与硬件的时间差来比较两组。1.3.0 还在首行记录 ISP 配置帧率和曝光时间，供区分相机配置与实际交付节奏。 [实拍分析与收尾判据](docs/final-round.md)
 
 ## 文档
 

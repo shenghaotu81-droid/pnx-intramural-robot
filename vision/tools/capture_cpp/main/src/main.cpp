@@ -6,7 +6,10 @@
 #include "maix_basic.hpp"
 #include "maix_camera.hpp"
 
+#include <cvi_ae.h>
+#include <cvi_isp.h>
 #include <atomic>
+#include <cmath>
 #include <cstdlib>
 #include <future>
 #include <mutex>
@@ -132,7 +135,7 @@ void capture_frames(maix::camera::Camera &camera, int buffers, cv::Size preview_
     const int channel = camera.get_channel();
     const cv::Size record_preview = preview_size.width > 240 ? cv::Size(240, 180) : preview_size;
     int native_width = 0;
-    std::int64_t encoder_open_us = 0;
+    std::optional<RecordingStart> startup;
     int timeouts = 0;
     std::int64_t retry_us = 0;
     exchange.notice("Warming up");
@@ -153,6 +156,7 @@ void capture_frames(maix::camera::Camera &camera, int buffers, cv::Size preview_
                     record_requested = !record_requested;
                     if (!record_requested) {
                         close_video(recording, exchange);
+                        startup.reset();
                     }
                 }
             }
@@ -161,9 +165,18 @@ void capture_frames(maix::camera::Camera &camera, int buffers, cv::Size preview_
                 try {
                     const auto start = Clock::now();
                     recording = std::make_unique<Recording>(output_directory, native_width);
-                    encoder_open_us = micros(start, Clock::now());
+                    startup.emplace();
+                    startup->open_us = micros(start, Clock::now());
+                    ISP_PUB_ATTR_S isp{};
+                    if (CVI_ISP_GetPubAttr(0, &isp) == CVI_SUCCESS && isp.f32FrameRate > 0) {
+                        startup->isp_fps_milli = std::lround(isp.f32FrameRate * 1000.0);
+                    }
+                    ISP_EXP_INFO_S ae{};
+                    if (CVI_ISP_QueryExposureInfo(0, &ae) == CVI_SUCCESS) {
+                        startup->exposure_us = ae.u32ExpTime;
+                    }
                     exchange.set_recording(true);
-                    exchange.notice("");
+                    exchange.notice("Preparing video");
                 } catch (const std::exception &error) {
                     maix::log::error("Could not open recording: %s", error.what());
                     record_requested = false;
@@ -200,6 +213,17 @@ void capture_frames(maix::camera::Camera &camera, int buffers, cv::Size preview_
                 }
                 continue;
             }
+            if (startup) {
+                // A frame queued during encoder initialization has an old hardware PTS
+                // even when pop returns immediately. Establish t=0 after this backlog.
+                if (startup->discard_buffered_frame(buffers)) {
+                    frame.release();
+                    continue;
+                }
+                timing.start = *startup;
+                startup.reset();
+                exchange.notice("");
+            }
 
             const bool preview_due = timing.captured >= next_preview;
             if (photo_requested || preview_due) {
@@ -231,7 +255,6 @@ void capture_frames(maix::camera::Camera &camera, int buffers, cv::Size preview_
                 timing.preview_us = micros(start, Clock::now());
             }
             if (recording) {
-                timing.open_us = std::exchange(encoder_open_us, 0);
                 timing.driver_pts = info.u64PTS;
                 timing.vpss_time_ref = info.u32TimeRef;
                 try {

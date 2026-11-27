@@ -35,7 +35,15 @@ def replay(work, binary, sample, width):
     with sample.with_suffix(".csv").open() as source:
         original = list(csv.DictReader(source))
     assert [(r["frame_index"], r["t_us"]) for r in rows] == [(r["frame_index"], r["t_us"]) for r in original]
-    assert all(r["cpu_mapped"] == "0" and 1 <= int(r["queue_depth"]) <= 8 for r in rows)
+    buffers = 1 if width == 1440 else 2
+    assert all(r["cpu_mapped"] == "0" and int(r["camera_buffers"]) == buffers
+               and int(r["queue_capacity"]) == 16 and 1 <= int(r["queue_depth"]) <= 16 for r in rows)
+    fields = ("open_us", "startup_discarded", "isp_fps_milli", "exposure_us")
+    assert tuple(int(rows[0][k]) for k in fields) == (156855, buffers, 30000, 18000)
+    assert all(tuple(int(r[k]) for k in fields) == (0, 0, -1, -1) for r in rows[1:])
+    profile = output("python3", "-B", APP / "scripts/profile_capture.py", video.with_suffix(".csv")).decode()
+    assert f"queue capacity=16   discarded at start={buffers}" in profile
+    assert f"non-unit VPSS TimeRef steps=0/{len(rows)-1}" in profile
     pixels = output("ffmpeg", "-v", "error", "-xerror", "-i", video, "-f", "hash", "-hash", "sha256", "-")
     with (EVIDENCE / "media-decode.tsv").open() as source:
         expected = next(r["decoded_sha256"] for r in csv.DictReader(source, delimiter="\t")
@@ -60,7 +68,8 @@ def replay(work, binary, sample, width):
     assert result.returncode == 1 and b"no HEVC access unit" in result.stderr
     assert all(p.suffix == ".jpg" for p in bad.iterdir())
     depth = max(int(r["queue_depth"]) for r in rows)
-    print(f"{sample.parent.name}, encoder width {width}, {len(rows)} frames verified, peak FIFO {depth}/8")
+    print(f"{sample.parent.name}, encoder width {width}, {buffers} startup buffers discarded, "
+          f"{len(rows)} frames verified, peak FIFO {depth}/16")
 
 
 def main():
@@ -73,7 +82,10 @@ def main():
                         "-I", MIDDLEWARE / "uapi", APP / "tests/host_replay.cpp",
                         APP / "main/src/nv21_frame.cpp", APP / "main/src/recording.cpp", *flags, "-o", binary],
                        check=True)
-        for sample in sorted(EVIDENCE.glob("v[0-9]*/*.h265")):
+        samples = sorted(EVIDENCE.glob("v[0-9]*/*.h265"))
+        if not samples:
+            raise FileNotFoundError(f"No board recordings in {EVIDENCE}")
+        for sample in samples:
             for width in (1440, 1472):
                 replay(work, binary, sample, width)
 

@@ -28,6 +28,29 @@ def p95(values):
     return sorted(values)[math.ceil(len(values) * 0.95) - 1]
 
 
+def report_vpss(frames, details):
+    first = details[0]
+    if "queue_capacity" in first:
+        print(f"queue capacity={first['queue_capacity']}   discarded at start={first['startup_discarded']}"
+              f"   ISP configured fps x1000={first['isp_fps_milli']}   start exposure (us)={first['exposure_us']}")
+    jumps = []
+    for i in range(1, len(details)):
+        step = (details[i]["vpss_time_ref"] - details[i - 1]["vpss_time_ref"]) & 0xffffffff
+        if step != 1:
+            jumps.append((i, step))
+    print(f"non-unit VPSS TimeRef steps={len(jumps)}/{len(details)-1}")
+    for i, step in jumps[:10]:
+        print(f"  {i-1} -> {i}   TimeRef step={step}   software gap="
+              f"{(frames[i]['t_us']-frames[i-1]['t_us'])/1000:.3f} ms"
+              f"   VPSS delta={frames[i]['vpss_pts']-frames[i-1]['vpss_pts']} ticks")
+    if len(frames) > 1:
+        print(f"first interval: software={frames[1]['t_us']/1000:.3f} ms"
+              f"   VPSS delta={frames[1]['vpss_pts']-frames[0]['vpss_pts']} ticks")
+    stalls = sorted(details, key=lambda r: r["video_write_us"], reverse=True)[:3]
+    print("longest video writes (frame, ms): " + ", ".join(
+        f"{r['frame_index']} {r['video_write_us']/1000:.3f}" for r in stalls))
+
+
 def report(path):
     frames = read_rows(path, ",", ["frame_index", "t_us", "vpss_pts"], exact=True)
     if not frames or frames[0]["t_us"] != 0:
@@ -66,6 +89,10 @@ def report(path):
             print(f"VPSS get timed separately; camera buffers={details[0]['camera_buffers']}   "
                   f"CPU-mapped frames={sum(d['cpu_mapped'] for d in details)}/{len(details)}   "
                   f"maximum queued packets={max(d['queue_depth'] for d in details)}")
+            startup_fields = {"queue_capacity", "startup_discarded", "isp_fps_milli", "exposure_us"}
+            if startup_fields.intersection(details[0]) and not startup_fields.issubset(details[0]):
+                raise ValueError("incomplete recording-start timing header")
+            report_vpss(frames, details)
         else:
             print("pop_us includes VPSS get, CPU mapping and cache invalidation.")
         print("stage                nonzero/total       median       p95       max   (ms, all frames)")
